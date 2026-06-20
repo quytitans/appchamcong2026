@@ -23,6 +23,11 @@ export const api = {
     request<{ ok: boolean }>('/api/auth/verify-user', { method: 'POST', body: JSON.stringify({ password }) }),
   verifyAdminPassword: (password: string) =>
     request<{ ok: boolean }>('/api/auth/verify-admin', { method: 'POST', body: JSON.stringify({ password }) }),
+  verifyPin: (password: string) =>
+    request<{ role: 'admin' | 'user' | null }>('/api/auth/verify-pin', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    }),
   setUserPassword: (password: string) =>
     request<void>('/api/auth/user-password', { method: 'PUT', body: JSON.stringify({ password }) }),
   setAdminPassword: (password: string) =>

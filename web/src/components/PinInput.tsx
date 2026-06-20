@@ -5,15 +5,16 @@ interface Props {
   value: string
   onChange: (value: string) => void
   onComplete?: (value: string) => void
+  autoFocus?: boolean
 }
 
-export function PinInput({ length, value, onChange, onComplete }: Props) {
+export function PinInput({ length, value, onChange, onComplete, autoFocus = true }: Props) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const digits = value.split('')
 
   useEffect(() => {
-    if (value === '') refs.current[0]?.focus()
-  }, [value])
+    if (value === '' && autoFocus) refs.current[0]?.focus()
+  }, [value, autoFocus])
 
   function handleChange(index: number, raw: string) {
     const digitsOnly = raw.replace(/\D/g, '')
@@ -64,7 +65,10 @@ export function PinInput({ length, value, onChange, onComplete }: Props) {
           value={digits[i] ?? ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
-          autoFocus={i === 0}
+          autoFocus={autoFocus && i === 0}
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore=""
         />
       ))}
     </div>

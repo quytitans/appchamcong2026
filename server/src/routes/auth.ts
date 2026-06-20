@@ -22,6 +22,14 @@ authRouter.post('/verify-admin', (req, res) => {
   res.json({ ok: password === getSettings().admin_password })
 })
 
+authRouter.post('/verify-pin', (req, res) => {
+  const { password } = req.body
+  const settings = getSettings()
+  if (password === settings.admin_password) return res.json({ role: 'admin' })
+  if (password === settings.user_password) return res.json({ role: 'user' })
+  res.json({ role: null })
+})
+
 authRouter.put('/user-password', (req, res) => {
   const { password } = req.body
   if (typeof password !== 'string' || !/^\d{4}$/.test(password)) {
@@ -33,8 +41,8 @@ authRouter.put('/user-password', (req, res) => {
 
 authRouter.put('/admin-password', (req, res) => {
   const { password } = req.body
-  if (typeof password !== 'string' || !/^\d{6}$/.test(password)) {
-    return res.status(400).json({ error: 'Mat khau Admin phai la 6 so' })
+  if (typeof password !== 'string' || !/^\d{4}$/.test(password)) {
+    return res.status(400).json({ error: 'Mat khau Admin phai la 4 so' })
   }
   db.prepare('UPDATE auth_settings SET admin_password = ? WHERE id = 1').run(password)
   res.status(204).end()

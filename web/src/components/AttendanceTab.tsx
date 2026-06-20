@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CalendarCheck, CalendarOff, CalendarRange, Clock3 } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, ConfigTask } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -127,7 +128,10 @@ export function AttendanceTab({ isAdmin }: Props) {
     <div className="tab-content">
       {!isAdmin && (
         <>
-          <h2>Chấm công hôm nay ({formatDateVn(today)})</h2>
+          <h2>
+            <CalendarCheck size={20} className="title-icon" />
+            Chấm công hôm nay ({formatDateVn(today)})
+          </h2>
           {isTodayOff ? (
             <div className="off-banner">
               <span>Hôm nay đã báo nghỉ</span>
@@ -155,6 +159,7 @@ export function AttendanceTab({ isAdmin }: Props) {
                     checked={overtimeChecked}
                     onChange={(e) => setOvertimeChecked(e.target.checked)}
                   />
+                  <Clock3 size={18} className="overtime-icon" />
                   <span>Note tăng ca</span>
                 </label>
                 {overtimeChecked && (
@@ -182,7 +187,10 @@ export function AttendanceTab({ isAdmin }: Props) {
 
       {isAdmin && (
         <>
-          <h2 className="history-title">Chấm công bù (Admin)</h2>
+          <h2 className="history-title">
+            <CalendarCheck size={18} className="title-icon" />
+            Chấm công bù (Admin)
+          </h2>
           <div className="backfill-form">
             <label className="field-label">
               Chọn ngày (quá khứ hoặc tương lai)
@@ -202,7 +210,10 @@ export function AttendanceTab({ isAdmin }: Props) {
             {backfillMsg && <p className="success-text">{backfillMsg}</p>}
           </div>
 
-          <h2 className="history-title">Báo nghỉ nhiều ngày</h2>
+          <h2 className="history-title">
+            <CalendarOff size={18} className="title-icon" />
+            Báo nghỉ nhiều ngày
+          </h2>
           <div className="off-range-form">
             <label className="field-label">
               Từ ngày
@@ -229,7 +240,10 @@ export function AttendanceTab({ isAdmin }: Props) {
         </>
       )}
 
-      <h2 className="history-title">Lịch chấm công ({formatMonthVn(calendarMonth)})</h2>
+      <h2 className="history-title">
+        <CalendarRange size={18} className="title-icon" />
+        Lịch chấm công ({formatMonthVn(calendarMonth)})
+      </h2>
       <div className="status-toggle">
         <button
           type="button"

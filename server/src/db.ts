@@ -44,14 +44,14 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS auth_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    admin_password TEXT NOT NULL DEFAULT '123456',
-    user_password TEXT NOT NULL DEFAULT '1234'
+    admin_password TEXT NOT NULL DEFAULT '7556',
+    user_password TEXT NOT NULL DEFAULT '1111'
   );
 `)
 
 const authSettingsCount = db.prepare('SELECT COUNT(*) as count FROM auth_settings').get() as { count: number }
 if (authSettingsCount.count === 0) {
-  db.prepare('INSERT INTO auth_settings (id, admin_password, user_password) VALUES (1, ?, ?)').run('123456', '1234')
+  db.prepare('INSERT INTO auth_settings (id, admin_password, user_password) VALUES (1, ?, ?)').run('7556', '1111')
 }
 
 const attendanceColumns = db.prepare('PRAGMA table_info(attendance)').all() as { name: string }[]

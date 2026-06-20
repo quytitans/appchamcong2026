@@ -32,7 +32,7 @@ export function PasswordModal({ onSuccess, onCancel }: Props) {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
         <h2>Nhập mật khẩu Admin</h2>
-        <PinInput length={6} value={pin} onChange={setPin} onComplete={handleComplete} />
+        <PinInput length={4} value={pin} onChange={setPin} onComplete={handleComplete} />
         {checking && <p className="loading">Đang kiểm tra...</p>}
         {error && <p className="error-text">{error}</p>}
         <div className="modal-actions">

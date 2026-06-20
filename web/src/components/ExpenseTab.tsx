@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { CircleDollarSign, Receipt, ShoppingBasket } from 'lucide-react'
 import { api } from '../api'
 import type { Expense, ExpenseSummary, Settlement } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
+import { MoneyInput } from './MoneyInput'
 import { formatDateVn, formatVnd, todayStr } from '../utils'
 
 interface Props {
@@ -109,7 +111,10 @@ export function ExpenseTab({ isAdmin }: Props) {
     <div className="tab-content">
       {!isAdmin && (
         <>
-          <h2>Ghi tiền đi chợ</h2>
+          <h2>
+            <ShoppingBasket size={18} className="title-icon" />
+            Ghi tiền đi chợ
+          </h2>
           <label className="field-label">
             Ngày chi tiêu
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-input" />
@@ -125,12 +130,10 @@ export function ExpenseTab({ isAdmin }: Props) {
                   onChange={(e) => updateRow(i, 'item_name', e.target.value)}
                   className="text-input expense-item-input"
                 />
-                <input
-                  type="number"
-                  inputMode="numeric"
+                <MoneyInput
                   placeholder="Số tiền"
                   value={row.amount}
-                  onChange={(e) => updateRow(i, 'amount', e.target.value)}
+                  onChange={(v) => updateRow(i, 'amount', v)}
                   className="text-input expense-amount-input"
                 />
                 {rows.length > 1 && (
@@ -151,18 +154,23 @@ export function ExpenseTab({ isAdmin }: Props) {
         </>
       )}
 
-      <div className="summary-cards">
-        <div className="summary-card">
-          <span>Tổng chi tháng này</span>
-          <strong>{formatVnd(summary.monthTotal)}</strong>
-        </div>
-        <div className="summary-card">
-          <span>Tổng tiền chưa tất toán</span>
-          <strong>{formatVnd(history.reduce((sum, e) => sum + e.amount, 0))}</strong>
-        </div>
+      <div className="summary-line">
+        {isAdmin && (
+          <span className="summary-line-item">
+            <CircleDollarSign size={16} className="summary-line-icon" />
+            Tổng chi tháng này: <strong>{formatVnd(summary.monthTotal)}</strong>
+          </span>
+        )}
+        <span className="summary-line-item">
+          <Receipt size={16} className="summary-line-icon summary-line-icon-danger" />
+          Tổng tiền chưa tất toán: <strong className="text-danger">{formatVnd(history.reduce((sum, e) => sum + e.amount, 0))}</strong>
+        </span>
       </div>
 
-      <h2 className="history-title">Lịch sử chi tiêu (chưa tất toán)</h2>
+      <h2 className="history-title">
+        <ShoppingBasket size={18} className="title-icon" />
+        Lịch sử chi tiêu (chưa tất toán)
+      </h2>
       {isAdmin && (
         <button
           type="button"
@@ -198,7 +206,10 @@ export function ExpenseTab({ isAdmin }: Props) {
         ))}
       </div>
 
-      <h2 className="history-title">Lịch sử tất toán</h2>
+      <h2 className="history-title">
+        <Receipt size={18} className="title-icon" />
+        Lịch sử tất toán
+      </h2>
       <div className="history-list">
         {settlements.length === 0 && <p>Chưa có lần tất toán nào.</p>}
         {settlements.map((s) => (

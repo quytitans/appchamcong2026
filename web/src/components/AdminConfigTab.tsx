@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { KeyRound, ListChecks } from 'lucide-react'
 import { api } from '../api'
 import type { ConfigTask } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -64,7 +65,10 @@ export function AdminConfigTab() {
 
   return (
     <div className="tab-content">
-      <h2>Cấu hình danh sách công việc</h2>
+      <h2>
+        <ListChecks size={20} className="title-icon" />
+        Cấu hình danh sách công việc
+      </h2>
       <div className="config-list">
         {tasks.map((task) => (
           <div key={task.id} className="config-row">
@@ -97,7 +101,10 @@ export function AdminConfigTab() {
         </button>
       </div>
 
-      <h2 className="history-title">Cài đặt mật khẩu</h2>
+      <h2 className="history-title">
+        <KeyRound size={18} className="title-icon" />
+        Cài đặt mật khẩu
+      </h2>
       <div className="password-settings">
         <p className="field-label">Mật khẩu User mới (4 số)</p>
         <PinInput
@@ -108,20 +115,22 @@ export function AdminConfigTab() {
             setUserPinMsg('')
           }}
           onComplete={handleSaveUserPin}
+          autoFocus={false}
         />
         {userPinMsg && <p className="success-text">{userPinMsg}</p>}
       </div>
 
       <div className="password-settings">
-        <p className="field-label">Mật khẩu Admin mới (6 số)</p>
+        <p className="field-label">Mật khẩu Admin mới (4 số)</p>
         <PinInput
-          length={6}
+          length={4}
           value={newAdminPin}
           onChange={(v) => {
             setNewAdminPin(v)
             setAdminPinMsg('')
           }}
           onComplete={handleSaveAdminPin}
+          autoFocus={false}
         />
         {adminPinMsg && <p className="success-text">{adminPinMsg}</p>}
       </div>

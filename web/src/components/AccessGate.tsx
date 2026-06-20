@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { Lock } from 'lucide-react'
 import { api } from '../api'
 import { PinInput } from './PinInput'
 
 interface Props {
-  onUnlock: () => void
+  onUnlock: (role: 'admin' | 'user') => void
 }
 
 export function AccessGate({ onUnlock }: Props) {
@@ -15,9 +16,9 @@ export function AccessGate({ onUnlock }: Props) {
     setChecking(true)
     setError('')
     try {
-      const { ok } = await api.verifyUserPassword(value)
-      if (ok) {
-        onUnlock()
+      const { role } = await api.verifyPin(value)
+      if (role) {
+        onUnlock(role)
       } else {
         setError('Sai mật khẩu, vui lòng thử lại')
         setPin('')
@@ -30,6 +31,7 @@ export function AccessGate({ onUnlock }: Props) {
   return (
     <div className="access-gate">
       <div className="access-gate-box">
+        <Lock size={32} className="access-gate-lock" />
         <h1>Chấm công &amp; Tiền đi chợ</h1>
         <p>Nhập mật khẩu để tiếp tục</p>
         <PinInput length={4} value={pin} onChange={setPin} onComplete={handleComplete} />

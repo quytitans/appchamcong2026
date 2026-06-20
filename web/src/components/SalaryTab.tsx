@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { AlertTriangle, CalendarCheck, CalendarX, Clock, Settings2, Wallet } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, PayrollSettings } from '../types'
+import { MoneyInput } from './MoneyInput'
 import {
   computeMonthStats,
   currentMonthPrefix,
@@ -66,7 +68,10 @@ export function SalaryTab() {
 
   return (
     <div className="tab-content">
-      <h2>Bảng lương ({formatMonthVn(month)})</h2>
+      <h2>
+        <Wallet size={20} className="title-icon" />
+        Bảng lương ({formatMonthVn(month)})
+      </h2>
       <div className="status-toggle">
         <button
           type="button"
@@ -84,23 +89,29 @@ export function SalaryTab() {
         </button>
       </div>
 
-      <div className="summary-cards">
-        <div className="summary-card">
+      <div className="summary-cards-vertical">
+        <div className="summary-card-row">
+          <CalendarCheck size={20} className="summary-row-icon summary-row-icon-success" />
           <span>Số ngày đi làm</span>
           <strong>{stats.workedDays}</strong>
         </div>
-        <div className="summary-card">
+        <div className="summary-card-row">
+          <CalendarX size={20} className="summary-row-icon summary-row-icon-danger" />
           <span>Số ngày nghỉ</span>
           <strong>{stats.offDays}</strong>
         </div>
-        <div className="summary-card">
+        <div className="summary-card-row">
+          <AlertTriangle size={20} className="summary-row-icon summary-row-icon-warning" />
           <span>Số lần nghỉ liên tiếp (≥2 ngày)</span>
           <strong>{stats.streaks.length}</strong>
         </div>
-        <div className="summary-card">
-          <span>Tổng giờ tăng ca</span>
-          <strong>{stats.totalOvertimeHours}</strong>
-        </div>
+        {stats.totalOvertimeHours > 0 && (
+          <div className="summary-card-row">
+            <Clock size={20} className="summary-row-icon" />
+            <span>Tổng giờ tăng ca</span>
+            <strong>{stats.totalOvertimeHours}</strong>
+          </div>
+        )}
       </div>
 
       {stats.streaks.length > 0 && (
@@ -116,37 +127,24 @@ export function SalaryTab() {
         </div>
       )}
 
-      <h2 className="history-title">Thiết lập lương</h2>
+      <h2 className="history-title">
+        <Settings2 size={18} className="title-icon" />
+        Thiết lập lương
+      </h2>
       <label className="field-label">
         Tiền công mỗi ngày đi làm
-        <input
-          type="number"
-          inputMode="numeric"
-          className="text-input"
-          value={dailyWage}
-          onChange={(e) => setDailyWage(e.target.value)}
-        />
+        <MoneyInput value={dailyWage} onChange={setDailyWage} className="text-input" />
       </label>
       <label className="field-label">
         Tiền thưởng tháng
-        <input
-          type="number"
-          inputMode="numeric"
-          className="text-input"
-          value={monthlyBonus}
-          onChange={(e) => setMonthlyBonus(e.target.value)}
-        />
+        <MoneyInput value={monthlyBonus} onChange={setMonthlyBonus} className="text-input" />
       </label>
-      <label className="field-label">
-        Lương 1 giờ tăng ca
-        <input
-          type="number"
-          inputMode="numeric"
-          className="text-input"
-          value={overtimeRate}
-          onChange={(e) => setOvertimeRate(e.target.value)}
-        />
-      </label>
+      {stats.totalOvertimeHours > 0 && (
+        <label className="field-label">
+          Lương 1 giờ tăng ca
+          <MoneyInput value={overtimeRate} onChange={setOvertimeRate} className="text-input" />
+        </label>
+      )}
       <button className="btn btn-primary btn-large" onClick={handleSavePayroll} disabled={saving}>
         {saving ? 'Đang lưu...' : 'Lưu thiết lập lương'}
       </button>
