@@ -53,6 +53,15 @@ expensesRouter.post('/settle', (req, res) => {
   res.status(201).json({ ...(settlement as object), items })
 })
 
+expensesRouter.put('/:id', (req, res) => {
+  const { item_name, amount } = req.body
+  if (!item_name || typeof amount !== 'number') {
+    return res.status(400).json({ error: 'item_name va amount la bat buoc' })
+  }
+  db.prepare('UPDATE expenses SET item_name = ?, amount = ? WHERE id = ?').run(item_name, amount, req.params.id)
+  res.json(db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id))
+})
+
 expensesRouter.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id)
   res.status(204).end()

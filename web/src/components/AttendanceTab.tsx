@@ -39,9 +39,9 @@ export function AttendanceTab({ isAdmin }: Props) {
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
   const monthCells = getMonthCells(calendarMonth)
+  const [todayStatus, setTodayStatus] = useState<'worked' | 'off'>('worked')
   const historyByDate = new Map(history.map((r) => [r.date, r]))
   const todayRecord = historyByDate.get(today)
-  const isTodayOff = todayRecord?.status === 'off'
 
   useEffect(() => {
     load()
@@ -53,11 +53,14 @@ export function AttendanceTab({ isAdmin }: Props) {
     setTasks(taskList)
     setHistory(historyList)
     const todayRec = historyList.find((r) => r.date === today)
-    if (todayRec && todayRec.status === 'worked') {
-      setSelected(new Set(JSON.parse(todayRec.tasks_json)))
-      if (todayRec.overtime_hours > 0) {
-        setOvertimeChecked(true)
-        setOvertimeHours(String(todayRec.overtime_hours))
+    if (todayRec) {
+      setTodayStatus(todayRec.status)
+      if (todayRec.status === 'worked') {
+        setSelected(new Set(JSON.parse(todayRec.tasks_json)))
+        if (todayRec.overtime_hours > 0) {
+          setOvertimeChecked(true)
+          setOvertimeHours(String(todayRec.overtime_hours))
+        }
       }
     }
     setLoading(false)
@@ -76,8 +79,15 @@ export function AttendanceTab({ isAdmin }: Props) {
     setSaving(true)
     setSavedMsg('')
     try {
-      const overtime = overtimeChecked ? Number(overtimeHours) || 0 : 0
-      const record = await api.saveAttendance(today, Array.from(selected), 'worked', overtime)
+      const record =
+        todayStatus === 'off'
+          ? await api.saveAttendance(today, [], 'off')
+          : await api.saveAttendance(
+              today,
+              Array.from(selected),
+              'worked',
+              overtimeChecked ? Number(overtimeHours) || 0 : 0,
+            )
       setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
       setSavedMsg('Đã lưu chấm công!')
     } finally {
@@ -118,7 +128,12 @@ export function AttendanceTab({ isAdmin }: Props) {
     if (!(await confirm(`Xóa chấm công ngày ${formatDateVn(date)}?`))) return
     await api.deleteAttendance(date)
     setHistory((prev) => prev.filter((r) => r.date !== date))
-    if (date === today) setSelected(new Set())
+    if (date === today) {
+      setSelected(new Set())
+      setOvertimeChecked(false)
+      setOvertimeHours('')
+      setTodayStatus('worked')
+    }
     if (date === selectedDate) setSelectedDate(null)
   }
 
@@ -132,9 +147,27 @@ export function AttendanceTab({ isAdmin }: Props) {
             <CalendarCheck size={20} className="title-icon" />
             Chấm công hôm nay ({formatDateVn(today)})
           </h2>
-          {isTodayOff ? (
+
+          <div className="status-toggle">
+            <button
+              type="button"
+              className={todayStatus === 'worked' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => setTodayStatus('worked')}
+            >
+              Đi làm
+            </button>
+            <button
+              type="button"
+              className={todayStatus === 'off' ? 'btn btn-off btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => setTodayStatus('off')}
+            >
+              Nghỉ
+            </button>
+          </div>
+
+          {todayStatus === 'off' ? (
             <div className="off-banner">
-              <span>Hôm nay đã báo nghỉ</span>
+              <span>Hôm nay sẽ được ghi nhận là ngày nghỉ</span>
             </div>
           ) : (
             <>
@@ -175,11 +208,16 @@ export function AttendanceTab({ isAdmin }: Props) {
                   </label>
                 )}
               </div>
-
-              <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving}>
-                {saving ? 'Đang lưu...' : 'Lưu chấm công'}
-              </button>
             </>
+          )}
+
+          <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving}>
+            {saving ? 'Đang lưu...' : 'Lưu chấm công'}
+          </button>
+          {todayRecord && (
+            <button className="btn btn-danger btn-large" onClick={() => handleDelete(today)} disabled={saving}>
+              Xóa chấm công hôm nay
+            </button>
           )}
           {savedMsg && <p className="success-text">{savedMsg}</p>}
         </>
@@ -314,7 +352,7 @@ export function AttendanceTab({ isAdmin }: Props) {
                     {doneTasks.length}/{tasks.length} việc
                   </span>
                 )}
-                {isAdmin && (
+                {(isAdmin || record.date === today) && (
                   <button className="btn btn-danger btn-small" onClick={() => handleDelete(record.date)}>
                     Xóa
                   </button>

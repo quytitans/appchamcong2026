@@ -451,6 +451,15 @@
   gap: 8px;
 }
 
+.expense-row-editing {
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.expense-row-editing .btn {
+  flex: 1;
+}
+
 .expense-item-input {
   flex: 2;
 }

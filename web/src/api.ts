@@ -62,6 +62,8 @@ export const api = {
   getExpenseSummary: () => request<ExpenseSummary>('/api/expenses/summary'),
   saveExpenseBatch: (date: string, items: { item_name: string; amount: number }[]) =>
     request<Expense[]>('/api/expenses/batch', { method: 'POST', body: JSON.stringify({ date, items }) }),
+  updateExpense: (id: number, item_name: string, amount: number) =>
+    request<Expense>(`/api/expenses/${id}`, { method: 'PUT', body: JSON.stringify({ item_name, amount }) }),
   deleteExpense: (id: number) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),
   settleExpenses: () => request<Settlement>('/api/expenses/settle', { method: 'POST' }),
   getSettlements: () => request<Settlement[]>('/api/settlements'),

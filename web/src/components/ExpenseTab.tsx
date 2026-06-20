@@ -20,7 +20,8 @@ function emptyRow(): Row {
 }
 
 export function ExpenseTab({ isAdmin }: Props) {
-  const [date, setDate] = useState(todayStr())
+  const today = todayStr()
+  const [date, setDate] = useState(today)
   const [rows, setRows] = useState<Row[]>([emptyRow()])
   const [history, setHistory] = useState<Expense[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
@@ -29,7 +30,38 @@ export function ExpenseTab({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settling, setSettling] = useState(false)
+  const [editing, setEditing] = useState<Record<number, Row>>({})
   const { confirm, modal: confirmModal } = useConfirm()
+
+  function canManage(item: Expense) {
+    return isAdmin || item.date === today
+  }
+
+  function startEdit(item: Expense) {
+    setEditing((prev) => ({ ...prev, [item.id]: { item_name: item.item_name, amount: String(item.amount) } }))
+  }
+
+  function cancelEdit(id: number) {
+    setEditing((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
+  function updateEditing(id: number, field: keyof Row, value: string) {
+    setEditing((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
+  }
+
+  async function saveEdit(id: number) {
+    const edited = editing[id]
+    const name = edited.item_name.trim()
+    const amount = Number(edited.amount)
+    if (!name || !amount) return
+    const updated = await api.updateExpense(id, name, amount)
+    setHistory((prev) => prev.map((e) => (e.id === id ? updated : e)))
+    cancelEdit(id)
+  }
 
   useEffect(() => {
     load()
@@ -190,17 +222,44 @@ export function ExpenseTab({ isAdmin }: Props) {
               <span className="badge">{formatVnd(items.reduce((sum, it) => sum + it.amount, 0))}</span>
             </div>
             <div className="history-card-body">
-              {items.map((item) => (
-                <div key={item.id} className="expense-item-row">
-                  <span>{item.item_name}</span>
-                  <span>{formatVnd(item.amount)}</span>
-                  {isAdmin && (
-                    <button className="btn btn-danger btn-small" onClick={() => handleDelete(item.id)}>
-                      Xóa
+              {items.map((item) =>
+                editing[item.id] ? (
+                  <div key={item.id} className="expense-row expense-row-editing">
+                    <input
+                      type="text"
+                      className="text-input expense-item-input"
+                      value={editing[item.id].item_name}
+                      onChange={(e) => updateEditing(item.id, 'item_name', e.target.value)}
+                    />
+                    <MoneyInput
+                      value={editing[item.id].amount}
+                      onChange={(v) => updateEditing(item.id, 'amount', v)}
+                      className="text-input expense-amount-input"
+                    />
+                    <button className="btn btn-primary btn-small" onClick={() => saveEdit(item.id)}>
+                      Lưu
                     </button>
-                  )}
-                </div>
-              ))}
+                    <button className="btn btn-secondary btn-small" onClick={() => cancelEdit(item.id)}>
+                      Hủy
+                    </button>
+                  </div>
+                ) : (
+                  <div key={item.id} className="expense-item-row">
+                    <span>{item.item_name}</span>
+                    <span>{formatVnd(item.amount)}</span>
+                    {canManage(item) && (
+                      <>
+                        <button className="btn btn-secondary btn-small" onClick={() => startEdit(item)}>
+                          Sửa
+                        </button>
+                        <button className="btn btn-danger btn-small" onClick={() => handleDelete(item.id)}>
+                          Xóa
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ),
+              )}
             </div>
           </div>
         ))}
