@@ -9,7 +9,8 @@ import type {
 } from './types'
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+  const fullUrl = `${import.meta.env.BASE_URL}${url.replace(/^\//, '')}`.replace(/\/+/g, '/')
+  const res = await fetch(fullUrl, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
