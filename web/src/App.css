@@ -219,6 +219,44 @@
   color: #8a5a00;
 }
 
+.off-section {
+  background: #f8d2d2;
+  border: 2px solid var(--danger);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 16px;
+}
+
+.off-checklist-item {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: #8a1f1f;
+  font-weight: 700;
+}
+
+.off-checklist-item input[type='checkbox'] {
+  accent-color: var(--danger);
+}
+
+.off-icon {
+  color: var(--danger);
+  flex-shrink: 0;
+}
+
+.checklist-item-disabled {
+  opacity: 0.5;
+}
+
+.checklist-item-disabled input {
+  cursor: not-allowed;
+}
+
+.reminder-banner {
+  color: #8a1f1f;
+  font-weight: 700;
+}
+
 .off-banner {
   display: flex;
   align-items: center;
@@ -286,6 +324,12 @@
 
 .calendar-cell.is-today {
   border-width: 2px;
+  box-shadow: 0 0 0 3px rgba(170, 59, 255, 0.25);
+  font-weight: 700;
+}
+
+.calendar-cell.is-today.is-off {
+  box-shadow: 0 0 0 3px rgba(224, 65, 63, 0.25);
 }
 
 .calendar-cell.is-selected {

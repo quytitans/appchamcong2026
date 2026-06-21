@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarOff, CalendarRange, Clock3 } from 'lucide-react'
+import { CalendarCheck, CalendarOff, CalendarRange, Clock3, MoonStar } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, ConfigTask } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -39,9 +39,10 @@ export function AttendanceTab({ isAdmin }: Props) {
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
   const monthCells = getMonthCells(calendarMonth)
-  const [todayStatus, setTodayStatus] = useState<'worked' | 'off'>('worked')
+  const [offChecked, setOffChecked] = useState(false)
+  const [reminderMsg, setReminderMsg] = useState('')
   const historyByDate = new Map(history.map((r) => [r.date, r]))
-  const todayRecord = historyByDate.get(today)
+  const hasWorkSelections = selected.size > 0 || overtimeChecked
 
   useEffect(() => {
     load()
@@ -54,7 +55,7 @@ export function AttendanceTab({ isAdmin }: Props) {
     setHistory(historyList)
     const todayRec = historyList.find((r) => r.date === today)
     if (todayRec) {
-      setTodayStatus(todayRec.status)
+      setOffChecked(todayRec.status === 'off')
       if (todayRec.status === 'worked') {
         setSelected(new Set(JSON.parse(todayRec.tasks_json)))
         if (todayRec.overtime_hours > 0) {
@@ -67,6 +68,7 @@ export function AttendanceTab({ isAdmin }: Props) {
   }
 
   function toggleTask(name: string) {
+    setReminderMsg('')
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(name)) next.delete(name)
@@ -78,16 +80,16 @@ export function AttendanceTab({ isAdmin }: Props) {
   async function handleSave() {
     setSaving(true)
     setSavedMsg('')
+    setReminderMsg('')
     try {
-      const record =
-        todayStatus === 'off'
-          ? await api.saveAttendance(today, [], 'off')
-          : await api.saveAttendance(
-              today,
-              Array.from(selected),
-              'worked',
-              overtimeChecked ? Number(overtimeHours) || 0 : 0,
-            )
+      const record = offChecked
+        ? await api.saveAttendance(today, [], 'off')
+        : await api.saveAttendance(
+            today,
+            Array.from(selected),
+            'worked',
+            overtimeChecked ? Number(overtimeHours) || 0 : 0,
+          )
       setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
       setSavedMsg('Đã lưu chấm công!')
     } finally {
@@ -132,7 +134,9 @@ export function AttendanceTab({ isAdmin }: Props) {
       setSelected(new Set())
       setOvertimeChecked(false)
       setOvertimeHours('')
-      setTodayStatus('worked')
+      setOffChecked(false)
+      setSavedMsg('')
+      setReminderMsg('Hôm nay chưa có chấm công, vui lòng chấm công hoặc báo nghỉ lại!')
     }
     if (date === selectedDate) setSelectedDate(null)
   }
@@ -148,77 +152,76 @@ export function AttendanceTab({ isAdmin }: Props) {
             Chấm công hôm nay ({formatDateVn(today)})
           </h2>
 
-          <div className="status-toggle">
-            <button
-              type="button"
-              className={todayStatus === 'worked' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-              onClick={() => setTodayStatus('worked')}
-            >
-              Đi làm
-            </button>
-            <button
-              type="button"
-              className={todayStatus === 'off' ? 'btn btn-off btn-small' : 'btn btn-secondary btn-small'}
-              onClick={() => setTodayStatus('off')}
-            >
-              Nghỉ
-            </button>
+          {reminderMsg && (
+            <div className="off-banner reminder-banner">
+              <span>{reminderMsg}</span>
+            </div>
+          )}
+
+          <div className="checklist">
+            {tasks.map((task) => (
+              <label key={task.id} className={`checklist-item ${offChecked ? 'checklist-item-disabled' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(task.task_name)}
+                  onChange={() => toggleTask(task.task_name)}
+                  disabled={offChecked}
+                />
+                <span>{task.task_name}</span>
+              </label>
+            ))}
+            {tasks.length === 0 && <p>Chưa có đầu việc nào, vào mục Cấu hình để thêm.</p>}
           </div>
 
-          {todayStatus === 'off' ? (
-            <div className="off-banner">
-              <span>Hôm nay sẽ được ghi nhận là ngày nghỉ</span>
-            </div>
-          ) : (
-            <>
-              <div className="checklist">
-                {tasks.map((task) => (
-                  <label key={task.id} className="checklist-item">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(task.task_name)}
-                      onChange={() => toggleTask(task.task_name)}
-                    />
-                    <span>{task.task_name}</span>
-                  </label>
-                ))}
-                {tasks.length === 0 && <p>Chưa có đầu việc nào, vào mục Cấu hình để thêm.</p>}
-              </div>
+          <div className="overtime-section">
+            <label className={`checklist-item overtime-checklist-item ${offChecked ? 'checklist-item-disabled' : ''}`}>
+              <input
+                type="checkbox"
+                checked={overtimeChecked}
+                disabled={offChecked}
+                onChange={(e) => {
+                  setReminderMsg('')
+                  setOvertimeChecked(e.target.checked)
+                }}
+              />
+              <Clock3 size={18} className="overtime-icon" />
+              <span>Note tăng ca</span>
+            </label>
+            {overtimeChecked && !offChecked && (
+              <label className="field-label">
+                Số giờ tăng ca
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className="text-input"
+                  value={overtimeHours}
+                  onChange={(e) => setOvertimeHours(e.target.value)}
+                />
+              </label>
+            )}
+          </div>
 
-              <div className="overtime-section">
-                <label className="checklist-item overtime-checklist-item">
-                  <input
-                    type="checkbox"
-                    checked={overtimeChecked}
-                    onChange={(e) => setOvertimeChecked(e.target.checked)}
-                  />
-                  <Clock3 size={18} className="overtime-icon" />
-                  <span>Note tăng ca</span>
-                </label>
-                {overtimeChecked && (
-                  <label className="field-label">
-                    Số giờ tăng ca
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      className="text-input"
-                      value={overtimeHours}
-                      onChange={(e) => setOvertimeHours(e.target.value)}
-                    />
-                  </label>
-                )}
-              </div>
-            </>
-          )}
+          <div className="off-section">
+            <label
+              className={`checklist-item off-checklist-item ${hasWorkSelections ? 'checklist-item-disabled' : ''}`}
+            >
+              <input
+                type="checkbox"
+                checked={offChecked}
+                disabled={hasWorkSelections}
+                onChange={(e) => {
+                  setReminderMsg('')
+                  setOffChecked(e.target.checked)
+                }}
+              />
+              <MoonStar size={18} className="off-icon" />
+              <span>Báo nghỉ hôm nay</span>
+            </label>
+          </div>
 
           <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving}>
             {saving ? 'Đang lưu...' : 'Lưu chấm công'}
           </button>
-          {todayRecord && (
-            <button className="btn btn-danger btn-large" onClick={() => handleDelete(today)} disabled={saving}>
-              Xóa chấm công hôm nay
-            </button>
-          )}
           {savedMsg && <p className="success-text">{savedMsg}</p>}
         </>
       )}
