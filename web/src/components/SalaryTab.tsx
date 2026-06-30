@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarCheck, CalendarX, Clock, Settings2, Wallet } from 'lucide-react'
+import { AlertTriangle, CalendarCheck, CalendarX, Clock, FileText, Settings2, Wallet } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, PayrollSettings } from '../types'
 import { MoneyInput } from './MoneyInput'
@@ -10,6 +10,7 @@ import {
   formatMonthVn,
   formatVnd,
   previousMonthPrefix,
+  todayStr,
 } from '../utils'
 
 export function SalaryTab() {
@@ -22,6 +23,9 @@ export function SalaryTab() {
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
   const [month, setMonth] = useState(currentMonthPrefix())
+  const [showSummary, setShowSummary] = useState(false)
+  const [unsettledTotal, setUnsettledTotal] = useState(0)
+  const [loadingUnsettled, setLoadingUnsettled] = useState(false)
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
 
@@ -57,6 +61,17 @@ export function SalaryTab() {
     }
   }
 
+  async function openSummary() {
+    setShowSummary(true)
+    setLoadingUnsettled(true)
+    try {
+      const expenses = await api.getExpenses()
+      setUnsettledTotal(expenses.reduce((sum, e) => sum + e.amount, 0))
+    } finally {
+      setLoadingUnsettled(false)
+    }
+  }
+
   if (loading) return <p className="loading">Đang tải...</p>
 
   const stats = computeMonthStats(history, month)
@@ -64,7 +79,9 @@ export function SalaryTab() {
   const bonus = payroll?.monthly_bonus ?? 0
   const otRate = payroll?.overtime_rate ?? 0
   const overtimePay = stats.totalOvertimeHours * otRate
-  const total = stats.workedDays * wage + bonus + overtimePay
+  const salaryPay = stats.workedDays * wage
+  const total = salaryPay + bonus + overtimePay
+  const transferTotal = total + unsettledTotal
 
   return (
     <div className="tab-content">
@@ -151,15 +168,100 @@ export function SalaryTab() {
       {savedMsg && <p className="success-text">{savedMsg}</p>}
 
       <div className="summary-cards">
-        <div className="summary-card">
-          <span>Tổng tiền tăng ca</span>
-          <strong>{formatVnd(overtimePay)}</strong>
-        </div>
+        {overtimePay > 0 && (
+          <div className="summary-card">
+            <span>Tổng tiền tăng ca</span>
+            <strong>{formatVnd(overtimePay)}</strong>
+          </div>
+        )}
         <div className="summary-card salary-total-card">
           <span>Tổng lương ({formatMonthVn(month)})</span>
           <strong>{formatVnd(total)}</strong>
         </div>
       </div>
+
+      <button className="btn btn-summary btn-large" onClick={openSummary}>
+        <FileText size={18} />
+        Tổng kết tháng
+      </button>
+
+      {showSummary && (
+        <div className="modal-overlay" onClick={() => setShowSummary(false)}>
+          <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invoice-header">
+              <FileText size={22} />
+              <span>TỔNG KẾT THÁNG</span>
+              <span className="invoice-month">{formatMonthVn(month)}</span>
+            </div>
+
+            <div className="invoice-body">
+              <div className="invoice-meta">
+                Ngày tổng kết: <strong>{formatDateVn(todayStr())}</strong>
+              </div>
+
+              {stats.streaks.length > 0 && (
+                <div className="invoice-section">
+                  <div className="invoice-section-title">Nghỉ liên tiếp (≥2 ngày)</div>
+                  {stats.streaks.map((s) => (
+                    <div key={s.start} className="invoice-streak-row">
+                      {formatDateVn(s.start)} → {formatDateVn(s.end)} ({s.length} ngày)
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="invoice-section">
+                <div className="invoice-section-title">Lương {formatMonthVn(month)}</div>
+                <div className="invoice-row">
+                  <span>
+                    {stats.workedDays} ngày × {formatVnd(wage)}/ngày
+                  </span>
+                  <strong>{formatVnd(salaryPay)}</strong>
+                </div>
+                <div className="invoice-row">
+                  <span>Tiền thưởng tháng</span>
+                  <strong>{formatVnd(bonus)}</strong>
+                </div>
+                {overtimePay > 0 && (
+                  <div className="invoice-row">
+                    <span>
+                      Tăng ca: {stats.totalOvertimeHours}h × {formatVnd(otRate)}/h
+                    </span>
+                    <strong>{formatVnd(overtimePay)}</strong>
+                  </div>
+                )}
+              </div>
+
+              <div className="invoice-section">
+                <div className="invoice-section-title">Tiền đi chợ chưa tất toán</div>
+                <div className="invoice-row">
+                  <span>Tổng chưa tất toán</span>
+                  <strong className="text-danger">
+                    {loadingUnsettled ? '...' : formatVnd(unsettledTotal)}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="invoice-total">
+                <span>Tổng tiền chuyển khoản</span>
+                <strong>{loadingUnsettled ? '...' : formatVnd(transferTotal)}</strong>
+              </div>
+
+              <div className="invoice-footer">
+                <span className="invoice-signature">QuyTitans</span>
+                <div className="invoice-actions">
+                  <button className="btn btn-secondary btn-small" onClick={() => setShowSummary(false)}>
+                    Hủy bỏ
+                  </button>
+                  <button className="btn btn-primary btn-small" onClick={() => setShowSummary(false)}>
+                    Xác nhận CK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

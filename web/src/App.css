@@ -778,3 +778,146 @@
   text-align: center;
   padding: 40px;
 }
+
+/* Summary button */
+.btn-summary {
+  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  color: #fff;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-summary:active {
+  opacity: 0.88;
+}
+
+/* Invoice modal */
+.invoice-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 370px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.28);
+  max-height: 92vh;
+  overflow-y: auto;
+}
+
+.invoice-header {
+  background: var(--accent);
+  color: #fff;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.6px;
+}
+
+.invoice-month {
+  font-size: 13px;
+  font-weight: 400;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.invoice-body {
+  padding: 16px 18px 18px;
+}
+
+.invoice-meta {
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 14px;
+}
+
+.invoice-meta strong {
+  color: var(--text-h);
+}
+
+.invoice-section {
+  border-top: 1px dashed #ccc;
+  padding-top: 12px;
+  margin-bottom: 12px;
+}
+
+.invoice-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--accent-dark);
+  margin-bottom: 8px;
+}
+
+.invoice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 4px 0;
+  gap: 8px;
+}
+
+.invoice-row span {
+  color: #555;
+  flex: 1;
+}
+
+.invoice-row strong {
+  font-size: 15px;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.invoice-streak-row {
+  font-size: 13px;
+  color: var(--danger);
+  padding: 3px 0;
+}
+
+.invoice-total {
+  border-top: 2px solid var(--accent);
+  padding-top: 12px;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-h);
+  margin-bottom: 14px;
+}
+
+.invoice-total strong {
+  font-size: 22px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.invoice-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px dashed #ccc;
+  padding-top: 12px;
+  gap: 8px;
+}
+
+.invoice-signature {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--accent-dark);
+  opacity: 0.65;
+}
+
+.invoice-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
