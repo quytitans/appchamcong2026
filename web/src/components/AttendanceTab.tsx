@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Clock3, MoonStar } from 'lucide-react'
+import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Clock3, Lock, MoonStar } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, ConfigTask } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -48,8 +48,26 @@ export function AttendanceTab({ isAdmin }: Props) {
   const monthCells = getMonthCells(calendarMonth)
   const [offChecked, setOffChecked] = useState(false)
   const [reminderMsg, setReminderMsg] = useState('')
+  const [confirmedMonths, setConfirmedMonths] = useState<Set<string>>(new Set())
   const historyByDate = new Map(history.map((r) => [r.date, r]))
   const hasWorkSelections = selected.size > 0 || overtimeChecked
+  const todayIsConfirmed = confirmedMonths.has(today.slice(0, 7))
+
+  function isDateConfirmed(date: string): boolean {
+    return confirmedMonths.has(date.slice(0, 7))
+  }
+
+  function rangeOverlapsConfirmed(start: string, end: string): boolean {
+    let cur = start.slice(0, 7)
+    const endMonth = end.slice(0, 7)
+    while (cur <= endMonth) {
+      if (confirmedMonths.has(cur)) return true
+      const [y, m] = cur.split('-').map(Number)
+      const next = new Date(y, m, 1)
+      cur = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+    }
+    return false
+  }
 
   useEffect(() => {
     load()
@@ -57,9 +75,14 @@ export function AttendanceTab({ isAdmin }: Props) {
 
   async function load() {
     setLoading(true)
-    const [taskList, historyList] = await Promise.all([api.getTasks(), api.getAttendance()])
+    const [taskList, historyList, confirmedList] = await Promise.all([
+      api.getTasks(),
+      api.getAttendance(),
+      api.getConfirmedMonths(),
+    ])
     setTasks(taskList)
     setHistory(historyList)
+    setConfirmedMonths(new Set(confirmedList))
     const todayRec = historyList.find((r) => r.date === today)
     if (todayRec) {
       setOffChecked(todayRec.status === 'off')
@@ -168,6 +191,9 @@ export function AttendanceTab({ isAdmin }: Props) {
 
   if (loading) return <p className="loading">Đang tải...</p>
 
+  const backfillIsConfirmed = isDateConfirmed(backfillDate)
+  const rangeIsConfirmed = rangeOverlapsConfirmed(rangeStart, rangeEnd)
+
   return (
     <div className="tab-content">
       {!isAdmin && (
@@ -177,6 +203,12 @@ export function AttendanceTab({ isAdmin }: Props) {
             Chấm công hôm nay ({formatDateVn(today)})
           </h2>
 
+          {todayIsConfirmed && (
+            <div className="month-locked-notice">
+              <Lock size={14} /> Tháng này đã xác nhận CK — không thể thay đổi chấm công
+            </div>
+          )}
+
           {reminderMsg && (
             <div className="off-banner reminder-banner">
               <span>{reminderMsg}</span>
@@ -185,12 +217,12 @@ export function AttendanceTab({ isAdmin }: Props) {
 
           <div className="checklist">
             {tasks.map((task) => (
-              <label key={task.id} className={`checklist-item ${offChecked ? 'checklist-item-disabled' : ''}`}>
+              <label key={task.id} className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
                 <input
                   type="checkbox"
                   checked={selected.has(task.task_name)}
                   onChange={() => toggleTask(task.task_name)}
-                  disabled={offChecked}
+                  disabled={offChecked || todayIsConfirmed}
                 />
                 <span>{task.task_name}</span>
               </label>
@@ -199,11 +231,11 @@ export function AttendanceTab({ isAdmin }: Props) {
           </div>
 
           <div className="overtime-section">
-            <label className={`checklist-item overtime-checklist-item ${offChecked ? 'checklist-item-disabled' : ''}`}>
+            <label className={`checklist-item overtime-checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
               <input
                 type="checkbox"
                 checked={overtimeChecked}
-                disabled={offChecked}
+                disabled={offChecked || todayIsConfirmed}
                 onChange={(e) => {
                   setReminderMsg('')
                   setOvertimeChecked(e.target.checked)
@@ -212,7 +244,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               <Clock3 size={18} className="overtime-icon" />
               <span>Note tăng ca</span>
             </label>
-            {overtimeChecked && !offChecked && (
+            {overtimeChecked && !offChecked && !todayIsConfirmed && (
               <label className="field-label">
                 Số giờ tăng ca
                 <input
@@ -228,12 +260,12 @@ export function AttendanceTab({ isAdmin }: Props) {
 
           <div className="off-section">
             <label
-              className={`checklist-item off-checklist-item ${hasWorkSelections ? 'checklist-item-disabled' : ''}`}
+              className={`checklist-item off-checklist-item ${hasWorkSelections || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={offChecked}
-                disabled={hasWorkSelections}
+                disabled={hasWorkSelections || todayIsConfirmed}
                 onChange={(e) => {
                   setReminderMsg('')
                   setOffChecked(e.target.checked)
@@ -244,7 +276,7 @@ export function AttendanceTab({ isAdmin }: Props) {
             </label>
           </div>
 
-          <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving}>
+          <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving || todayIsConfirmed}>
             {saving ? 'Đang lưu...' : 'Lưu chấm công'}
           </button>
           {savedMsg && <p className="success-text">{savedMsg}</p>}
@@ -270,7 +302,12 @@ export function AttendanceTab({ isAdmin }: Props) {
                 className="text-input"
               />
             </label>
-            <button className="btn btn-primary btn-large" onClick={handleBackfillSave} disabled={backfillSaving}>
+            {backfillIsConfirmed && (
+              <div className="month-locked-notice">
+                <Lock size={14} /> Tháng {backfillDate.slice(0, 7)} đã xác nhận CK — không thể chấm công bù
+              </div>
+            )}
+            <button className="btn btn-primary btn-large" onClick={handleBackfillSave} disabled={backfillSaving || backfillIsConfirmed}>
               {backfillSaving ? 'Đang lưu...' : 'Chấm công'}
             </button>
             {backfillMsg && <p className="success-text">{backfillMsg}</p>}
@@ -299,7 +336,12 @@ export function AttendanceTab({ isAdmin }: Props) {
                 className="text-input"
               />
             </label>
-            <button className="btn btn-off btn-large" onClick={handleMarkOffRange} disabled={rangeSaving}>
+            {rangeIsConfirmed && (
+              <div className="month-locked-notice">
+                <Lock size={14} /> Khoảng ngày này chứa tháng đã xác nhận CK — không thể báo nghỉ
+              </div>
+            )}
+            <button className="btn btn-off btn-large" onClick={handleMarkOffRange} disabled={rangeSaving || rangeIsConfirmed}>
               {rangeSaving ? 'Đang lưu...' : 'Báo nghỉ các ngày này'}
             </button>
           </div>
@@ -395,6 +437,7 @@ export function AttendanceTab({ isAdmin }: Props) {
         const record = historyByDate.get(selectedDate)!
         const isOff = record.status === 'off'
         const doneTasks: string[] = JSON.parse(record.tasks_json)
+        const canEdit = !isDateConfirmed(selectedDate)
         return (
           <div className="history-card day-detail-card">
             <div className="history-card-header">
@@ -406,7 +449,7 @@ export function AttendanceTab({ isAdmin }: Props) {
                   {doneTasks.length}/{tasks.length} việc
                 </span>
               )}
-              {(isAdmin || record.date === today) && (
+              {canEdit && (isAdmin || record.date === today) && (
                 <button className="btn btn-danger btn-small" onClick={() => handleDelete(record.date)}>
                   Xóa
                 </button>
@@ -418,34 +461,48 @@ export function AttendanceTab({ isAdmin }: Props) {
                 {record.overtime_hours > 0 && <div>Tăng ca: {record.overtime_hours} giờ</div>}
               </div>
             )}
+            {!canEdit && (
+              <div className="month-locked-notice" style={{ marginTop: 8 }}>
+                <Lock size={14} /> Tháng này đã xác nhận CK
+              </div>
+            )}
           </div>
         )
       })()}
 
-      {isAdmin && selectedDate && !historyByDate.has(selectedDate) && selectedDate <= today && (
-        <div className="history-card day-detail-card">
-          <div className="history-card-header">
-            <strong>{formatDateVn(selectedDate)}</strong>
-            <span className="badge">Chưa chấm công</span>
+      {isAdmin && selectedDate && !historyByDate.has(selectedDate) && selectedDate <= today && (() => {
+        const canEdit = !isDateConfirmed(selectedDate)
+        return (
+          <div className="history-card day-detail-card">
+            <div className="history-card-header">
+              <strong>{formatDateVn(selectedDate)}</strong>
+              <span className="badge">Chưa chấm công</span>
+            </div>
+            {canEdit ? (
+              <div className="history-card-body calendar-quick-actions">
+                <button
+                  className="btn btn-primary btn-small"
+                  onClick={() => handleCalendarQuickSave(selectedDate, 'worked')}
+                  disabled={calendarQuickSaving}
+                >
+                  {calendarQuickSaving ? '...' : 'Chấm công'}
+                </button>
+                <button
+                  className="btn btn-off btn-small"
+                  onClick={() => handleCalendarQuickSave(selectedDate, 'off')}
+                  disabled={calendarQuickSaving}
+                >
+                  {calendarQuickSaving ? '...' : 'Báo nghỉ'}
+                </button>
+              </div>
+            ) : (
+              <div className="month-locked-notice" style={{ marginTop: 8 }}>
+                <Lock size={14} /> Tháng này đã xác nhận CK
+              </div>
+            )}
           </div>
-          <div className="history-card-body calendar-quick-actions">
-            <button
-              className="btn btn-primary btn-small"
-              onClick={() => handleCalendarQuickSave(selectedDate, 'worked')}
-              disabled={calendarQuickSaving}
-            >
-              {calendarQuickSaving ? '...' : 'Chấm công'}
-            </button>
-            <button
-              className="btn btn-off btn-small"
-              onClick={() => handleCalendarQuickSave(selectedDate, 'off')}
-              disabled={calendarQuickSaving}
-            >
-              {calendarQuickSaving ? '...' : 'Báo nghỉ'}
-            </button>
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {confirmModal}
     </div>

@@ -47,6 +47,12 @@ db.exec(`
     admin_password TEXT NOT NULL DEFAULT '7556',
     user_password TEXT NOT NULL DEFAULT '1111'
   );
+
+  CREATE TABLE IF NOT EXISTS monthly_confirmations (
+    month TEXT PRIMARY KEY,
+    confirmed_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    settlement_id INTEGER
+  );
 `)
 
 const authSettingsCount = db.prepare('SELECT COUNT(*) as count FROM auth_settings').get() as { count: number }
@@ -70,6 +76,11 @@ if (!expenseColumns.some((c) => c.name === 'settlement_id')) {
 const payrollColumns = db.prepare('PRAGMA table_info(payroll_settings)').all() as { name: string }[]
 if (!payrollColumns.some((c) => c.name === 'overtime_rate')) {
   db.exec('ALTER TABLE payroll_settings ADD COLUMN overtime_rate INTEGER NOT NULL DEFAULT 0')
+}
+
+const confirmColumns = db.prepare('PRAGMA table_info(monthly_confirmations)').all() as { name: string }[]
+if (!confirmColumns.some((c) => c.name === 'settlement_id')) {
+  db.exec('ALTER TABLE monthly_confirmations ADD COLUMN settlement_id INTEGER')
 }
 
 const DEFAULT_TASKS = ['Dọn nhà', 'Nấu ăn', 'Giặt/ủi đồ', 'Rửa chén', 'Đi chợ', 'Lau nhà vệ sinh', 'Đón/đưa trẻ']

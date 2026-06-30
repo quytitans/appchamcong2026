@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarCheck, CalendarX, Clock, FileText, Settings2, Wallet } from 'lucide-react'
+import { AlertTriangle, CalendarCheck, CalendarX, CheckCircle, Clock, FileText, Lock, Settings2, Wallet } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, PayrollSettings } from '../types'
+import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
 import {
   computeMonthStats,
@@ -13,6 +14,8 @@ import {
   todayStr,
 } from '../utils'
 
+type SummaryStep = 'closed' | 'warning' | 'invoice'
+
 export function SalaryTab() {
   const [history, setHistory] = useState<AttendanceRecord[]>([])
   const [payroll, setPayroll] = useState<PayrollSettings | null>(null)
@@ -23,9 +26,16 @@ export function SalaryTab() {
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
   const [month, setMonth] = useState(currentMonthPrefix())
-  const [showSummary, setShowSummary] = useState(false)
+  const [summaryStep, setSummaryStep] = useState<SummaryStep>('closed')
+  const [confirmed, setConfirmed] = useState(false)
+  const [confirmedAt, setConfirmedAt] = useState<string | null>(null)
+  const [settledAmount, setSettledAmount] = useState(0)
   const [unsettledTotal, setUnsettledTotal] = useState(0)
   const [loadingUnsettled, setLoadingUnsettled] = useState(false)
+  const [monthIsConfirmed, setMonthIsConfirmed] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [reverting, setReverting] = useState(false)
+  const { confirm, modal: confirmModal } = useConfirm()
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
 
@@ -35,12 +45,17 @@ export function SalaryTab() {
 
   async function load() {
     setLoading(true)
-    const [historyList, payrollData] = await Promise.all([api.getAttendance(), api.getPayroll(month)])
+    const [historyList, payrollData, confirmResult] = await Promise.all([
+      api.getAttendance(),
+      api.getPayroll(month),
+      api.checkMonthConfirmed(month),
+    ])
     setHistory(historyList)
     setPayroll(payrollData)
     setDailyWage(String(payrollData.daily_wage))
     setMonthlyBonus(String(payrollData.monthly_bonus))
     setOvertimeRate(String(payrollData.overtime_rate))
+    setMonthIsConfirmed(confirmResult.confirmed)
     setLoading(false)
   }
 
@@ -62,13 +77,57 @@ export function SalaryTab() {
   }
 
   async function openSummary() {
-    setShowSummary(true)
-    setLoadingUnsettled(true)
+    const result = await api.checkMonthConfirmed(month)
+    if (result.confirmed) {
+      setConfirmed(true)
+      setConfirmedAt(result.confirmed_at)
+      setSettledAmount(result.settled_amount)
+      setSummaryStep('warning')
+    } else {
+      setConfirmed(false)
+      setConfirmedAt(null)
+      setSettledAmount(0)
+      setSummaryStep('invoice')
+      setLoadingUnsettled(true)
+      try {
+        const expenses = await api.getExpenses()
+        setUnsettledTotal(expenses.reduce((sum, e) => sum + e.amount, 0))
+      } finally {
+        setLoadingUnsettled(false)
+      }
+    }
+  }
+
+  function handleViewConfirmed() {
+    setSummaryStep('invoice')
+  }
+
+  async function handleRevert() {
+    const ok = await confirm(
+      `Hoàn tác xác nhận CK ${formatMonthVn(month)}? Tiền đi chợ đã tất toán sẽ quay về chưa tất toán.`,
+    )
+    if (!ok) return
+    setReverting(true)
     try {
-      const expenses = await api.getExpenses()
-      setUnsettledTotal(expenses.reduce((sum, e) => sum + e.amount, 0))
+      await api.revertMonthConfirmation(month)
+      setConfirmed(false)
+      setConfirmedAt(null)
+      setSettledAmount(0)
+      setMonthIsConfirmed(false)
+      setSummaryStep('closed')
     } finally {
-      setLoadingUnsettled(false)
+      setReverting(false)
+    }
+  }
+
+  async function handleConfirmTransfer() {
+    setConfirming(true)
+    try {
+      await api.confirmMonth(month)
+      setConfirmed(true)
+      setSummaryStep('closed')
+    } finally {
+      setConfirming(false)
     }
   }
 
@@ -81,7 +140,8 @@ export function SalaryTab() {
   const overtimePay = stats.totalOvertimeHours * otRate
   const salaryPay = stats.workedDays * wage
   const total = salaryPay + bonus + overtimePay
-  const transferTotal = total + unsettledTotal
+  const transferTotal = total + (confirmed ? settledAmount : unsettledTotal)
+  const confirmedDateStr = confirmedAt ? formatDateVn(confirmedAt.slice(0, 10)) : ''
 
   return (
     <div className="tab-content">
@@ -148,21 +208,26 @@ export function SalaryTab() {
         <Settings2 size={18} className="title-icon" />
         Thiết lập lương
       </h2>
+      {monthIsConfirmed && (
+        <div className="month-locked-notice">
+          <Lock size={14} /> Tháng này đã xác nhận CK — không thể thay đổi thiết lập lương
+        </div>
+      )}
       <label className="field-label">
         Tiền công mỗi ngày đi làm
-        <MoneyInput value={dailyWage} onChange={setDailyWage} className="text-input" />
+        <MoneyInput value={dailyWage} onChange={setDailyWage} className="text-input" disabled={monthIsConfirmed} />
       </label>
       <label className="field-label">
         Tiền thưởng tháng
-        <MoneyInput value={monthlyBonus} onChange={setMonthlyBonus} className="text-input" />
+        <MoneyInput value={monthlyBonus} onChange={setMonthlyBonus} className="text-input" disabled={monthIsConfirmed} />
       </label>
       {stats.totalOvertimeHours > 0 && (
         <label className="field-label">
           Lương 1 giờ tăng ca
-          <MoneyInput value={overtimeRate} onChange={setOvertimeRate} className="text-input" />
+          <MoneyInput value={overtimeRate} onChange={setOvertimeRate} className="text-input" disabled={monthIsConfirmed} />
         </label>
       )}
-      <button className="btn btn-primary btn-large" onClick={handleSavePayroll} disabled={saving}>
+      <button className="btn btn-primary btn-large" onClick={handleSavePayroll} disabled={saving || monthIsConfirmed}>
         {saving ? 'Đang lưu...' : 'Lưu thiết lập lương'}
       </button>
       {savedMsg && <p className="success-text">{savedMsg}</p>}
@@ -185,8 +250,39 @@ export function SalaryTab() {
         Tổng kết tháng
       </button>
 
-      {showSummary && (
-        <div className="modal-overlay" onClick={() => setShowSummary(false)}>
+      {/* Warning: đã xác nhận CK */}
+      {summaryStep === 'warning' && (
+        <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
+          <div className="modal-box ck-warning-box" onClick={(e) => e.stopPropagation()}>
+            <div className="ck-warning-icon">
+              <CheckCircle size={36} />
+            </div>
+            <h2>Đã xác nhận chuyển khoản</h2>
+            <p className="ck-warning-desc">
+              {formatMonthVn(month)} đã xác nhận CK ngày <strong>{confirmedDateStr}</strong>
+            </p>
+            <div className="ck-warning-actions">
+              <button className="btn btn-secondary" onClick={() => setSummaryStep('closed')}>
+                Hủy
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleRevert}
+                disabled={reverting}
+              >
+                {reverting ? 'Đang hoàn tác...' : 'Khôi Phục'}
+              </button>
+              <button className="btn btn-primary" onClick={handleViewConfirmed}>
+                Xem
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice popup */}
+      {summaryStep === 'invoice' && (
+        <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
           <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invoice-header">
               <FileText size={22} />
@@ -195,6 +291,13 @@ export function SalaryTab() {
             </div>
 
             <div className="invoice-body">
+              {confirmed && (
+                <div className="invoice-confirmed-banner">
+                  <CheckCircle size={15} />
+                  Đã xác nhận chuyển khoản ngày {confirmedDateStr}
+                </div>
+              )}
+
               <div className="invoice-meta">
                 Ngày tổng kết: <strong>{formatDateVn(todayStr())}</strong>
               </div>
@@ -213,9 +316,11 @@ export function SalaryTab() {
               <div className="invoice-section">
                 <div className="invoice-section-title">Lương {formatMonthVn(month)}</div>
                 <div className="invoice-row">
-                  <span>
-                    {stats.workedDays} ngày × {formatVnd(wage)}/ngày
-                  </span>
+                  <span>Số ngày nghỉ</span>
+                  <strong>{stats.offDays} ngày</strong>
+                </div>
+                <div className="invoice-row">
+                  <span>{stats.workedDays} ngày × {formatVnd(wage)}/ngày</span>
                   <strong>{formatVnd(salaryPay)}</strong>
                 </div>
                 <div className="invoice-row">
@@ -224,44 +329,52 @@ export function SalaryTab() {
                 </div>
                 {overtimePay > 0 && (
                   <div className="invoice-row">
-                    <span>
-                      Tăng ca: {stats.totalOvertimeHours}h × {formatVnd(otRate)}/h
-                    </span>
+                    <span>Tăng ca: {stats.totalOvertimeHours}h × {formatVnd(otRate)}/h</span>
                     <strong>{formatVnd(overtimePay)}</strong>
                   </div>
                 )}
               </div>
 
               <div className="invoice-section">
-                <div className="invoice-section-title">Tiền đi chợ chưa tất toán</div>
+                <div className="invoice-section-title">
+                  {confirmed ? 'Tiền đi chợ (đã tất toán)' : 'Tiền đi chợ chưa tất toán'}
+                </div>
                 <div className="invoice-row">
-                  <span>Tổng chưa tất toán</span>
-                  <strong className="text-danger">
-                    {loadingUnsettled ? '...' : formatVnd(unsettledTotal)}
+                  <span>{confirmed ? 'Số tiền đã tất toán' : 'Tổng chưa tất toán'}</span>
+                  <strong className={confirmed ? '' : 'text-danger'}>
+                    {confirmed ? formatVnd(settledAmount) : (loadingUnsettled ? '...' : formatVnd(unsettledTotal))}
                   </strong>
                 </div>
               </div>
 
               <div className="invoice-total">
                 <span>Tổng tiền chuyển khoản</span>
-                <strong>{loadingUnsettled ? '...' : formatVnd(transferTotal)}</strong>
+                <strong>{loadingUnsettled && !confirmed ? '...' : formatVnd(transferTotal)}</strong>
               </div>
 
               <div className="invoice-footer">
                 <span className="invoice-signature">QuyTitans</span>
                 <div className="invoice-actions">
-                  <button className="btn btn-secondary btn-small" onClick={() => setShowSummary(false)}>
-                    Hủy bỏ
+                  <button className="btn btn-secondary btn-small" onClick={() => setSummaryStep('closed')}>
+                    Đóng
                   </button>
-                  <button className="btn btn-primary btn-small" onClick={() => setShowSummary(false)}>
-                    Xác nhận CK
-                  </button>
+                  {!confirmed && (
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={handleConfirmTransfer}
+                      disabled={confirming || loadingUnsettled}
+                    >
+                      {confirming ? 'Đang xử lý...' : 'Xác nhận CK'}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {confirmModal}
     </div>
   )
 }

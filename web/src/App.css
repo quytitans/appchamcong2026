@@ -819,16 +819,40 @@
   padding-top: 4px;
 }
 
-/* Summary button */
+/* Summary button — gold/amber for importance */
 .btn-summary {
-  background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  background: linear-gradient(135deg, #b45309, #f59e0b);
   color: #fff;
   gap: 8px;
   margin-top: 4px;
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.35);
 }
 
 .btn-summary:active {
   opacity: 0.88;
+}
+
+.btn-warning {
+  background: #fff7ed;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.btn-warning:active {
+  background: #fef3c7;
+}
+
+.invoice-pin-section {
+  border-top: 1px dashed #ccc;
+  padding-top: 14px;
+  margin-bottom: 12px;
+}
+
+.invoice-pin-label {
+  font-size: 13px;
+  color: #555;
+  margin: 0 0 10px;
+  text-align: center;
 }
 
 /* Invoice modal */
@@ -945,6 +969,73 @@
   border-top: 1px dashed #ccc;
   padding-top: 12px;
   gap: 8px;
+}
+
+/* Month locked notice */
+.month-locked-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #713f12;
+  margin-bottom: 10px;
+}
+
+/* CK Warning box */
+.ck-warning-box {
+  text-align: center;
+}
+
+.ck-warning-icon {
+  color: #059669;
+  margin-bottom: 8px;
+}
+
+.ck-warning-box h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+  color: #065f46;
+}
+
+.ck-warning-desc {
+  font-size: 15px;
+  color: var(--text);
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.ck-warning-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ck-warning-actions .btn {
+  flex: 1;
+  padding: 14px 10px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.invoice-confirmed-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #065f46;
+  margin-bottom: 12px;
 }
 
 .invoice-signature {

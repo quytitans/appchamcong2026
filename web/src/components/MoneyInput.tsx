@@ -5,6 +5,7 @@ interface Props {
   onChange: (value: string) => void
   placeholder?: string
   className?: string
+  disabled?: boolean
 }
 
 function getRawThousands(value: string): string {
@@ -18,7 +19,7 @@ function formatDisplay(value: string): string {
   return `${new Intl.NumberFormat('vi-VN').format(Number(value))} đ`
 }
 
-export function MoneyInput({ value, onChange, placeholder, className }: Props) {
+export function MoneyInput({ value, onChange, placeholder, className, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const raw = getRawThousands(value)
 
@@ -71,8 +72,9 @@ export function MoneyInput({ value, onChange, placeholder, className }: Props) {
       className={className}
       placeholder={placeholder}
       value={formatDisplay(value)}
-      onKeyDown={handleKeyDown}
-      onPaste={handlePaste}
+      disabled={disabled}
+      onKeyDown={disabled ? undefined : handleKeyDown}
+      onPaste={disabled ? undefined : handlePaste}
       onChange={() => {}}
     />
   )

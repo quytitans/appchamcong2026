@@ -51,7 +51,16 @@ export const api = {
   markOffRange: (start: string, end: string) =>
     request<AttendanceRecord[]>('/api/attendance/off-range', { method: 'POST', body: JSON.stringify({ start, end }) }),
 
+  getConfirmedMonths: () => request<string[]>('/api/payroll/confirmations'),
   getPayroll: (month: string) => request<PayrollSettings>(`/api/payroll/${month}`),
+  checkMonthConfirmed: (month: string) =>
+    request<{ confirmed: boolean; confirmed_at: string | null; settled_amount: number }>(`/api/payroll/${month}/confirmed`),
+  confirmMonth: (month: string) =>
+    request<{ confirmed: boolean; month: string; confirmed_at: string }>(`/api/payroll/${month}/confirm`, {
+      method: 'POST',
+    }),
+  revertMonthConfirmation: (month: string) =>
+    request<void>(`/api/payroll/${month}/confirm`, { method: 'DELETE' }),
   savePayroll: (month: string, daily_wage: number, monthly_bonus: number, overtime_rate: number) =>
     request<PayrollSettings>(`/api/payroll/${month}`, {
       method: 'PUT',
