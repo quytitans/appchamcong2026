@@ -246,7 +246,7 @@ export function SalaryTab() {
 
       <button className="btn btn-summary btn-large" onClick={openSummary}>
         <FileText size={18} />
-        Tổng kết tháng
+        {monthIsConfirmed ? 'Xem lại xác nhận chuyển khoản' : 'Tổng kết tháng'}
       </button>
 
       {/* Warning: đã xác nhận CK */}
