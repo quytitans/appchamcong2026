@@ -779,6 +779,46 @@
   padding: 40px;
 }
 
+/* Calendar month navigation (admin) */
+.calendar-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.calendar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+}
+
+.calendar-month-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-h);
+}
+
+.calendar-cell.is-empty-admin {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.calendar-cell.is-empty-admin:hover {
+  border-color: var(--accent);
+  opacity: 1;
+}
+
+.calendar-quick-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
 /* Summary button */
 .btn-summary {
   background: linear-gradient(135deg, var(--accent-dark), var(--accent));

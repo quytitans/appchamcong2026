@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarOff, CalendarRange, Clock3, MoonStar } from 'lucide-react'
+import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Clock3, MoonStar } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, ConfigTask } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -15,6 +15,12 @@ import {
 
 interface Props {
   isAdmin: boolean
+}
+
+function navigateMonth(monthPrefix: string, delta: number): string {
+  const [y, m] = monthPrefix.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 export function AttendanceTab({ isAdmin }: Props) {
@@ -36,6 +42,7 @@ export function AttendanceTab({ isAdmin }: Props) {
   const [overtimeHours, setOvertimeHours] = useState('')
   const { confirm, modal: confirmModal } = useConfirm()
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix())
+  const [calendarQuickSaving, setCalendarQuickSaving] = useState(false)
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
   const monthCells = getMonthCells(calendarMonth)
@@ -139,6 +146,24 @@ export function AttendanceTab({ isAdmin }: Props) {
       setReminderMsg('Hôm nay chưa có chấm công, vui lòng chấm công hoặc báo nghỉ lại!')
     }
     if (date === selectedDate) setSelectedDate(null)
+  }
+
+  async function handleCalendarQuickSave(date: string, status: 'worked' | 'off') {
+    setCalendarQuickSaving(true)
+    try {
+      const record = await api.saveAttendance(date, [], status)
+      setHistory((prev) => [record, ...prev.filter((r) => r.date !== date)])
+    } finally {
+      setCalendarQuickSaving(false)
+    }
+  }
+
+  function changeCalendarMonth(delta: number) {
+    const next = navigateMonth(calendarMonth, delta)
+    if (next <= thisMonth) {
+      setCalendarMonth(next)
+      setSelectedDate(null)
+    }
   }
 
   if (loading) return <p className="loading">Đang tải...</p>
@@ -285,22 +310,45 @@ export function AttendanceTab({ isAdmin }: Props) {
         <CalendarRange size={18} className="title-icon" />
         Lịch chấm công ({formatMonthVn(calendarMonth)})
       </h2>
-      <div className="status-toggle">
-        <button
-          type="button"
-          className={calendarMonth === thisMonth ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-          onClick={() => setCalendarMonth(thisMonth)}
-        >
-          Tháng này
-        </button>
-        <button
-          type="button"
-          className={calendarMonth === lastMonth ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
-          onClick={() => setCalendarMonth(lastMonth)}
-        >
-          Tháng trước
-        </button>
-      </div>
+
+      {isAdmin ? (
+        <div className="calendar-month-nav">
+          <button
+            type="button"
+            className="btn btn-secondary btn-small calendar-nav-btn"
+            onClick={() => changeCalendarMonth(-1)}
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <span className="calendar-month-label">{formatMonthVn(calendarMonth)}</span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-small calendar-nav-btn"
+            onClick={() => changeCalendarMonth(1)}
+            disabled={calendarMonth >= thisMonth}
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      ) : (
+        <div className="status-toggle">
+          <button
+            type="button"
+            className={calendarMonth === thisMonth ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+            onClick={() => { setCalendarMonth(thisMonth); setSelectedDate(null) }}
+          >
+            Tháng này
+          </button>
+          <button
+            type="button"
+            className={calendarMonth === lastMonth ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+            onClick={() => { setCalendarMonth(lastMonth); setSelectedDate(null) }}
+          >
+            Tháng trước
+          </button>
+        </div>
+      )}
+
       <div className="calendar">
         <div className="calendar-weekdays">
           {WEEKDAY_LABELS.map((label) => (
@@ -317,6 +365,7 @@ export function AttendanceTab({ isAdmin }: Props) {
             const isOff = record?.status === 'off'
             const isToday = dateStr === today
             const isSelected = dateStr === selectedDate
+            const isFuture = dateStr > today
             return (
               <button
                 key={dateStr}
@@ -327,8 +376,12 @@ export function AttendanceTab({ isAdmin }: Props) {
                   isOff ? 'is-off' : '',
                   isToday ? 'is-today' : '',
                   isSelected ? 'is-selected' : '',
+                  isAdmin && !isFuture && !record ? 'is-empty-admin' : '',
                 ].join(' ')}
-                onClick={() => setSelectedDate(record ? dateStr : null)}
+                onClick={() => {
+                  if (isAdmin && !isFuture) setSelectedDate(isSelected ? null : dateStr)
+                  else if (!isAdmin) setSelectedDate(record ? dateStr : null)
+                }}
               >
                 <span className="calendar-day-number">{day}</span>
                 {record && <span className="calendar-day-mark">{isOff ? 'Nghỉ' : '1'}</span>}
@@ -338,38 +391,61 @@ export function AttendanceTab({ isAdmin }: Props) {
         </div>
       </div>
 
-      {selectedDate &&
-        historyByDate.has(selectedDate) &&
-        (() => {
-          const record = historyByDate.get(selectedDate)!
-          const isOff = record.status === 'off'
-          const doneTasks: string[] = JSON.parse(record.tasks_json)
-          return (
-            <div className="history-card day-detail-card">
-              <div className="history-card-header">
-                <strong>{formatDateVn(record.date)}</strong>
-                {isOff ? (
-                  <span className="badge badge-off">Nghỉ</span>
-                ) : (
-                  <span className="badge">
-                    {doneTasks.length}/{tasks.length} việc
-                  </span>
-                )}
-                {(isAdmin || record.date === today) && (
-                  <button className="btn btn-danger btn-small" onClick={() => handleDelete(record.date)}>
-                    Xóa
-                  </button>
-                )}
-              </div>
-              {!isOff && (
-                <div className="history-card-body">
-                  {doneTasks.join(', ') || 'Không có việc nào'}
-                  {record.overtime_hours > 0 && <div>Tăng ca: {record.overtime_hours} giờ</div>}
-                </div>
+      {selectedDate && historyByDate.has(selectedDate) && (() => {
+        const record = historyByDate.get(selectedDate)!
+        const isOff = record.status === 'off'
+        const doneTasks: string[] = JSON.parse(record.tasks_json)
+        return (
+          <div className="history-card day-detail-card">
+            <div className="history-card-header">
+              <strong>{formatDateVn(record.date)}</strong>
+              {isOff ? (
+                <span className="badge badge-off">Nghỉ</span>
+              ) : (
+                <span className="badge">
+                  {doneTasks.length}/{tasks.length} việc
+                </span>
+              )}
+              {(isAdmin || record.date === today) && (
+                <button className="btn btn-danger btn-small" onClick={() => handleDelete(record.date)}>
+                  Xóa
+                </button>
               )}
             </div>
-          )
-        })()}
+            {!isOff && (
+              <div className="history-card-body">
+                {doneTasks.join(', ') || 'Không có việc nào'}
+                {record.overtime_hours > 0 && <div>Tăng ca: {record.overtime_hours} giờ</div>}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {isAdmin && selectedDate && !historyByDate.has(selectedDate) && selectedDate <= today && (
+        <div className="history-card day-detail-card">
+          <div className="history-card-header">
+            <strong>{formatDateVn(selectedDate)}</strong>
+            <span className="badge">Chưa chấm công</span>
+          </div>
+          <div className="history-card-body calendar-quick-actions">
+            <button
+              className="btn btn-primary btn-small"
+              onClick={() => handleCalendarQuickSave(selectedDate, 'worked')}
+              disabled={calendarQuickSaving}
+            >
+              {calendarQuickSaving ? '...' : 'Chấm công'}
+            </button>
+            <button
+              className="btn btn-off btn-small"
+              onClick={() => handleCalendarQuickSave(selectedDate, 'off')}
+              disabled={calendarQuickSaving}
+            >
+              {calendarQuickSaving ? '...' : 'Báo nghỉ'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirmModal}
     </div>
