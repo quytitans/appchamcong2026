@@ -124,8 +124,7 @@ export function SalaryTab() {
     setConfirming(true)
     try {
       await api.confirmMonth(month)
-      setConfirmed(true)
-      setSummaryStep('closed')
+      window.location.reload()
     } finally {
       setConfirming(false)
     }

@@ -410,13 +410,23 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
   border: none;
   background: none;
   cursor: pointer;
   text-align: left;
   font: inherit;
   padding: 0;
+}
+
+.settlement-toggle-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.settlement-amount {
+  font-size: 13px;
 }
 
 .salary-total-card {

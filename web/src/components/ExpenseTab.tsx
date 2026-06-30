@@ -271,7 +271,7 @@ export function ExpenseTab({ isAdmin }: Props) {
       </h2>
       <div className="history-list">
         {settlements.length === 0 && <p>Chưa có lần tất toán nào.</p>}
-        {settlements.map((s) => (
+        {settlements.map((s, index) => (
           <div key={s.id} className="history-card">
             <div className="history-card-header">
               <button
@@ -279,10 +279,12 @@ export function ExpenseTab({ isAdmin }: Props) {
                 className="settlement-toggle"
                 onClick={() => setExpandedSettlementId(expandedSettlementId === s.id ? null : s.id)}
               >
-                <strong>{formatDateVn(s.settled_at.slice(0, 10))}</strong>
-                <span className="badge badge-off">{formatVnd(s.total_amount)}</span>
+                <div className="settlement-toggle-info">
+                  <strong>{formatDateVn(s.settled_at.slice(0, 10))}</strong>
+                  <span className="badge badge-off settlement-amount">{formatVnd(s.total_amount)}</span>
+                </div>
               </button>
-              {isAdmin && (
+              {isAdmin && index === 0 && (
                 <button className="btn btn-secondary btn-small" onClick={() => handleRevertSettlement(s.id)}>
                   Chuyển về chi tiêu
                 </button>

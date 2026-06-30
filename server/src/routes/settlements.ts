@@ -4,7 +4,7 @@ import { db } from '../db.js'
 export const settlementsRouter = Router()
 
 settlementsRouter.get('/', (req, res) => {
-  const settlements = db.prepare('SELECT * FROM settlements ORDER BY id DESC LIMIT 2').all() as { id: number }[]
+  const settlements = db.prepare('SELECT * FROM settlements ORDER BY id DESC LIMIT 5').all() as { id: number }[]
   const result = settlements.map((s) => ({
     ...s,
     items: db.prepare('SELECT * FROM expenses WHERE settlement_id = ? ORDER BY date DESC, id DESC').all(s.id),
