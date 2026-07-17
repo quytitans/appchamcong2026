@@ -30,6 +30,7 @@ export function ExpenseTab({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settling, setSettling] = useState(false)
+  const [showSettleInvoice, setShowSettleInvoice] = useState(false)
   const [editing, setEditing] = useState<Record<number, Row>>({})
   const { confirm, modal: confirmModal } = useConfirm()
 
@@ -115,13 +116,12 @@ export function ExpenseTab({ isAdmin }: Props) {
     setSummary(summaryData)
   }
 
-  async function handleSettle() {
-    if (history.length === 0) return
-    const total = history.reduce((sum, e) => sum + e.amount, 0)
-    if (!(await confirm(`Tất toán toàn bộ ${formatVnd(total)} chi tiêu chưa tất toán?`))) return
+  async function handleConfirmSettle() {
+    if (!(await confirm('Xác nhận tất toán toàn bộ chi tiêu chưa tất toán?'))) return
     setSettling(true)
     try {
       await api.settleExpenses()
+      setShowSettleInvoice(false)
       await load()
     } finally {
       setSettling(false)
@@ -136,6 +136,7 @@ export function ExpenseTab({ isAdmin }: Props) {
   }
 
   const grouped = groupByDate(history)
+  const unsettledTotal = history.reduce((sum, e) => sum + e.amount, 0)
 
   if (loading) return <p className="loading">Đang tải...</p>
 
@@ -195,7 +196,7 @@ export function ExpenseTab({ isAdmin }: Props) {
         )}
         <span className="summary-line-item">
           <Receipt size={16} className="summary-line-icon summary-line-icon-danger" />
-          Tổng tiền chưa tất toán: <strong className="text-danger">{formatVnd(history.reduce((sum, e) => sum + e.amount, 0))}</strong>
+          Tổng tiền chưa tất toán: <strong className="text-danger">{formatVnd(unsettledTotal)}</strong>
         </span>
       </div>
 
@@ -207,10 +208,10 @@ export function ExpenseTab({ isAdmin }: Props) {
         <button
           type="button"
           className="btn btn-off btn-large"
-          onClick={handleSettle}
-          disabled={settling || history.length === 0}
+          onClick={() => setShowSettleInvoice(true)}
+          disabled={history.length === 0}
         >
-          {settling ? 'Đang tất toán...' : 'Tất toán tiền đi chợ'}
+          Tất toán tiền đi chợ
         </button>
       )}
       <div className="history-list">
@@ -305,6 +306,69 @@ export function ExpenseTab({ isAdmin }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Settle invoice popup */}
+      {showSettleInvoice && (
+        <div className="modal-overlay" onClick={() => setShowSettleInvoice(false)}>
+          <div className="invoice-modal settle-invoice-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="invoice-header settle-invoice-header">
+              <ShoppingBasket size={22} />
+              <span>PHIẾU TẤT TOÁN</span>
+              <span className="invoice-month">Tiền đi chợ</span>
+            </div>
+
+            <div className="invoice-body">
+              <div className="invoice-meta">
+                Ngày tất toán: <strong>{formatDateVn(today)}</strong>
+              </div>
+
+              {grouped.map(([d, items]) => {
+                const dayTotal = items.reduce((sum, it) => sum + it.amount, 0)
+                return (
+                  <div key={d} className="invoice-section">
+                    <div className="invoice-section-title">{formatDateVn(d)}</div>
+                    {items.map((item) => (
+                      <div key={item.id} className="invoice-row">
+                        <span>{item.item_name}</span>
+                        <strong>{formatVnd(item.amount)}</strong>
+                      </div>
+                    ))}
+                    <div className="invoice-row settle-day-subtotal">
+                      <span>Cộng ngày</span>
+                      <strong>{formatVnd(dayTotal)}</strong>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div className="invoice-total">
+                <span>Tổng tất toán</span>
+                <strong>{formatVnd(unsettledTotal)}</strong>
+              </div>
+
+              <div className="invoice-footer">
+                <span className="invoice-signature">QuyTitans</span>
+                <div className="invoice-actions">
+                  <button
+                    className="btn btn-secondary btn-small"
+                    onClick={() => setShowSettleInvoice(false)}
+                    disabled={settling}
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    className="btn btn-off btn-small"
+                    onClick={handleConfirmSettle}
+                    disabled={settling}
+                  >
+                    {settling ? 'Đang tất toán...' : 'Xác nhận tất toán'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmModal}
     </div>

@@ -981,6 +981,25 @@
   gap: 8px;
 }
 
+/* Settle invoice */
+.settle-invoice-modal {
+  max-width: 380px;
+}
+
+.settle-invoice-header {
+  background: #059669;
+}
+
+.settle-day-subtotal {
+  border-top: 1px dotted #ddd;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.settle-day-subtotal span {
+  font-style: italic;
+}
+
 /* Month locked notice */
 .month-locked-notice {
   display: flex;
