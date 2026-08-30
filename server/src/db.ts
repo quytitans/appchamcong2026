@@ -67,6 +67,15 @@ if (!attendanceColumns.some((c) => c.name === 'status')) {
 if (!attendanceColumns.some((c) => c.name === 'overtime_hours')) {
   db.exec('ALTER TABLE attendance ADD COLUMN overtime_hours REAL NOT NULL DEFAULT 0')
 }
+if (!attendanceColumns.some((c) => c.name === 'day_fraction')) {
+  db.exec('ALTER TABLE attendance ADD COLUMN day_fraction REAL NOT NULL DEFAULT 1')
+}
+if (!attendanceColumns.some((c) => c.name === 'half_period')) {
+  db.exec('ALTER TABLE attendance ADD COLUMN half_period TEXT')
+}
+if (!attendanceColumns.some((c) => c.name === 'half_note')) {
+  db.exec("ALTER TABLE attendance ADD COLUMN half_note TEXT NOT NULL DEFAULT ''")
+}
 
 const expenseColumns = db.prepare('PRAGMA table_info(expenses)').all() as { name: string }[]
 if (!expenseColumns.some((c) => c.name === 'settlement_id')) {
@@ -90,3 +99,29 @@ if (taskCount.count === 0) {
   const insert = db.prepare('INSERT INTO config_tasks (task_name) VALUES (?)')
   for (const name of DEFAULT_TASKS) insert.run(name)
 }
+
+// Chu nhat duoc mac dinh danh dau nghi truoc; nguoi dung van co the sua lai vao dung ngay do,
+// admin sua duoc bat cu luc nao. Khong dong vao thang da xac nhan CK.
+export function ensureSundayOffRecords() {
+  const start = new Date()
+  start.setDate(1)
+  const end = new Date(start.getFullYear(), start.getMonth() + 2, 0)
+  const confirmedMonths = new Set(
+    (db.prepare('SELECT month FROM monthly_confirmations').all() as { month: string }[]).map((r) => r.month),
+  )
+  const insert = db.prepare(`
+    INSERT INTO attendance (date, tasks_json, status, overtime_hours, day_fraction, half_period, half_note, submitted_at)
+    VALUES (?, '[]', 'off', 0, 0, NULL, '', datetime('now', 'localtime'))
+    ON CONFLICT(date) DO NOTHING
+  `)
+  const cur = new Date(start)
+  while (cur <= end) {
+    if (cur.getDay() === 0) {
+      const dateStr = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`
+      if (!confirmedMonths.has(dateStr.slice(0, 7))) insert.run(dateStr)
+    }
+    cur.setDate(cur.getDate() + 1)
+  }
+}
+
+ensureSundayOffRecords()

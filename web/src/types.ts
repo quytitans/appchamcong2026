@@ -5,11 +5,16 @@ export interface ConfigTask {
 
 export type AttendanceStatus = 'worked' | 'off'
 
+export type HalfPeriod = 'morning' | 'afternoon' | 'other'
+
 export interface AttendanceRecord {
   date: string
   tasks_json: string
   status: AttendanceStatus
   overtime_hours: number
+  day_fraction: number
+  half_period: HalfPeriod | null
+  half_note: string
   submitted_at: string
 }
 

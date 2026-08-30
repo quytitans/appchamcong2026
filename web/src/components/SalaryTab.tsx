@@ -6,15 +6,19 @@ import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
 import {
   computeMonthStats,
+  computeRangeStats,
   currentMonthPrefix,
+  firstDayOfMonth,
   formatDateVn,
   formatMonthVn,
   formatVnd,
+  lastDayOfMonth,
   previousMonthPrefix,
   todayStr,
 } from '../utils'
 
-type SummaryStep = 'closed' | 'warning' | 'invoice'
+type SummaryStep = 'closed' | 'warning' | 'range-choice' | 'invoice'
+type RangeMode = 'month' | 'custom'
 
 export function SalaryTab() {
   const [history, setHistory] = useState<AttendanceRecord[]>([])
@@ -27,6 +31,9 @@ export function SalaryTab() {
   const [savedMsg, setSavedMsg] = useState('')
   const [month, setMonth] = useState(currentMonthPrefix())
   const [summaryStep, setSummaryStep] = useState<SummaryStep>('closed')
+  const [rangeMode, setRangeMode] = useState<RangeMode>('month')
+  const [customStart, setCustomStart] = useState(firstDayOfMonth(currentMonthPrefix()))
+  const [customEnd, setCustomEnd] = useState(lastDayOfMonth(currentMonthPrefix()))
   const [confirmed, setConfirmed] = useState(false)
   const [confirmedAt, setConfirmedAt] = useState<string | null>(null)
   const [settledAmount, setSettledAmount] = useState(0)
@@ -82,23 +89,32 @@ export function SalaryTab() {
       setConfirmed(true)
       setConfirmedAt(result.confirmed_at)
       setSettledAmount(result.settled_amount)
+      setRangeMode('month')
       setSummaryStep('warning')
     } else {
       setConfirmed(false)
       setConfirmedAt(null)
       setSettledAmount(0)
-      setSummaryStep('invoice')
-      setLoadingUnsettled(true)
-      try {
-        const expenses = await api.getExpenses()
-        setUnsettledTotal(expenses.reduce((sum, e) => sum + e.amount, 0))
-      } finally {
-        setLoadingUnsettled(false)
-      }
+      setRangeMode('month')
+      setCustomStart(firstDayOfMonth(month))
+      setCustomEnd(lastDayOfMonth(month))
+      setSummaryStep('range-choice')
+    }
+  }
+
+  async function proceedToInvoice() {
+    setSummaryStep('invoice')
+    setLoadingUnsettled(true)
+    try {
+      const expenses = await api.getExpenses()
+      setUnsettledTotal(expenses.reduce((sum, e) => sum + e.amount, 0))
+    } finally {
+      setLoadingUnsettled(false)
     }
   }
 
   function handleViewConfirmed() {
+    setRangeMode('month')
     setSummaryStep('invoice')
   }
 
@@ -139,8 +155,16 @@ export function SalaryTab() {
   const overtimePay = stats.totalOvertimeHours * otRate
   const salaryPay = stats.workedDays * wage
   const total = salaryPay + bonus + overtimePay
-  const transferTotal = total + (confirmed ? settledAmount : unsettledTotal)
+
+  const invoiceStats = rangeMode === 'custom' ? computeRangeStats(history, customStart, customEnd) : stats
+  const invoiceOvertimePay = invoiceStats.totalOvertimeHours * otRate
+  const invoiceSalaryPay = invoiceStats.workedDays * wage
+  const invoiceBonus = rangeMode === 'custom' ? 0 : bonus
+  const invoiceTotal = invoiceSalaryPay + invoiceBonus + invoiceOvertimePay
+  const transferTotal = invoiceTotal + (confirmed ? settledAmount : unsettledTotal)
   const confirmedDateStr = confirmedAt ? formatDateVn(confirmedAt.slice(0, 10)) : ''
+  const invoicePeriodLabel =
+    rangeMode === 'custom' ? `${formatDateVn(customStart)} - ${formatDateVn(customEnd)}` : formatMonthVn(month)
 
   return (
     <div className="tab-content">
@@ -279,14 +303,75 @@ export function SalaryTab() {
         </div>
       )}
 
+      {/* Chọn kiểu tổng kết: cả tháng hoặc custom */}
+      {summaryStep === 'range-choice' && (
+        <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
+          <div className="modal-box range-choice-box" onClick={(e) => e.stopPropagation()}>
+            <h2>Tổng kết lương</h2>
+            <div className="range-choice-toggle">
+              <button
+                type="button"
+                className={rangeMode === 'month' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                onClick={() => setRangeMode('month')}
+              >
+                Cả tháng
+              </button>
+              <button
+                type="button"
+                className={rangeMode === 'custom' ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+                onClick={() => setRangeMode('custom')}
+              >
+                Custom
+              </button>
+            </div>
+            {rangeMode === 'month' ? (
+              <p className="ck-warning-desc">Tính lương toàn bộ {formatMonthVn(month)}.</p>
+            ) : (
+              <div className="range-choice-dates">
+                <label className="field-label">
+                  Từ ngày
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="text-input"
+                  />
+                </label>
+                <label className="field-label">
+                  Đến ngày
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="text-input"
+                  />
+                </label>
+              </div>
+            )}
+            <div className="ck-warning-actions">
+              <button className="btn btn-secondary" onClick={() => setSummaryStep('closed')}>
+                Hủy
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={proceedToInvoice}
+                disabled={rangeMode === 'custom' && customStart > customEnd}
+              >
+                Xem tổng kết
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Invoice popup */}
       {summaryStep === 'invoice' && (
         <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
           <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
             <div className="invoice-header">
               <FileText size={22} />
-              <span>TỔNG KẾT THÁNG</span>
-              <span className="invoice-month">{formatMonthVn(month)}</span>
+              <span>{rangeMode === 'custom' ? 'TỔNG KẾT' : 'TỔNG KẾT THÁNG'}</span>
+              <span className="invoice-month">{invoicePeriodLabel}</span>
             </div>
 
             <div className="invoice-body">
@@ -301,10 +386,10 @@ export function SalaryTab() {
                 Ngày tổng kết: <strong>{formatDateVn(todayStr())}</strong>
               </div>
 
-              {stats.streaks.length > 0 && (
+              {invoiceStats.streaks.length > 0 && (
                 <div className="invoice-section">
                   <div className="invoice-section-title">Nghỉ liên tiếp (≥2 ngày)</div>
-                  {stats.streaks.map((s) => (
+                  {invoiceStats.streaks.map((s) => (
                     <div key={s.start} className="invoice-streak-row">
                       {formatDateVn(s.start)} → {formatDateVn(s.end)} ({s.length} ngày)
                     </div>
@@ -313,23 +398,25 @@ export function SalaryTab() {
               )}
 
               <div className="invoice-section">
-                <div className="invoice-section-title">Lương {formatMonthVn(month)}</div>
+                <div className="invoice-section-title">Lương {invoicePeriodLabel}</div>
                 <div className="invoice-row">
                   <span>Số ngày nghỉ</span>
-                  <strong>{stats.offDays} ngày</strong>
+                  <strong>{invoiceStats.offDays} ngày</strong>
                 </div>
                 <div className="invoice-row">
-                  <span>{stats.workedDays} ngày × {formatVnd(wage)}/ngày</span>
-                  <strong>{formatVnd(salaryPay)}</strong>
+                  <span>{invoiceStats.workedDays} ngày × {formatVnd(wage)}/ngày</span>
+                  <strong>{formatVnd(invoiceSalaryPay)}</strong>
                 </div>
-                <div className="invoice-row">
-                  <span>Tiền thưởng tháng</span>
-                  <strong>{formatVnd(bonus)}</strong>
-                </div>
-                {overtimePay > 0 && (
+                {rangeMode === 'month' && (
                   <div className="invoice-row">
-                    <span>Tăng ca: {stats.totalOvertimeHours}h × {formatVnd(otRate)}/h</span>
-                    <strong>{formatVnd(overtimePay)}</strong>
+                    <span>Tiền thưởng tháng</span>
+                    <strong>{formatVnd(invoiceBonus)}</strong>
+                  </div>
+                )}
+                {invoiceOvertimePay > 0 && (
+                  <div className="invoice-row">
+                    <span>Tăng ca: {invoiceStats.totalOvertimeHours}h × {formatVnd(otRate)}/h</span>
+                    <strong>{formatVnd(invoiceOvertimePay)}</strong>
                   </div>
                 )}
               </div>
@@ -357,7 +444,7 @@ export function SalaryTab() {
                   <button className="btn btn-secondary btn-small" onClick={() => setSummaryStep('closed')}>
                     Đóng
                   </button>
-                  {!confirmed && (
+                  {!confirmed && rangeMode === 'month' && (
                     <button
                       className="btn btn-primary btn-small"
                       onClick={handleConfirmTransfer}

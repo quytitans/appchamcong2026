@@ -34,12 +34,13 @@ export function formatMonthVn(monthPrefix: string): string {
   return `Tháng ${m}/${y}`
 }
 
-export function computeMonthStats(records: AttendanceRecord[], monthPrefix: string): AttendanceStats {
-  const monthRecords = records.filter((r) => r.date.startsWith(monthPrefix))
-  const workedDays = monthRecords.filter((r) => r.status === 'worked').length
-  const offDays = monthRecords.filter((r) => r.status === 'off').length
+function computeStatsForRecords(rangeRecords: AttendanceRecord[]): AttendanceStats {
+  const workedDays = rangeRecords
+    .filter((r) => r.status === 'worked')
+    .reduce((sum, r) => sum + (r.day_fraction ?? 1), 0)
+  const offDays = rangeRecords.filter((r) => r.status === 'off').length
 
-  const offDates = monthRecords
+  const offDates = rangeRecords
     .filter((r) => r.status === 'off')
     .map((r) => r.date)
     .sort()
@@ -59,9 +60,27 @@ export function computeMonthStats(records: AttendanceRecord[], monthPrefix: stri
     i = j + 1
   }
 
-  const totalOvertimeHours = monthRecords.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)
+  const totalOvertimeHours = rangeRecords.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)
 
   return { workedDays, offDays, streaks, totalOvertimeHours }
+}
+
+export function computeMonthStats(records: AttendanceRecord[], monthPrefix: string): AttendanceStats {
+  return computeStatsForRecords(records.filter((r) => r.date.startsWith(monthPrefix)))
+}
+
+export function computeRangeStats(records: AttendanceRecord[], start: string, end: string): AttendanceStats {
+  return computeStatsForRecords(records.filter((r) => r.date >= start && r.date <= end))
+}
+
+export function firstDayOfMonth(monthPrefix: string): string {
+  return `${monthPrefix}-01`
+}
+
+export function lastDayOfMonth(monthPrefix: string): string {
+  const [y, m] = monthPrefix.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return `${monthPrefix}-${String(lastDay).padStart(2, '0')}`
 }
 
 export function getMonthCells(monthPrefix: string): (string | null)[] {

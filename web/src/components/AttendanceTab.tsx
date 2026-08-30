@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Clock3, Lock, MoonStar } from 'lucide-react'
 import { api } from '../api'
-import type { AttendanceRecord, ConfigTask } from '../types'
+import type { AttendanceRecord, HalfPeriod } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import {
   WEEKDAY_LABELS,
@@ -23,10 +23,18 @@ function navigateMonth(monthPrefix: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+function halfPeriodLabel(period: HalfPeriod | null): string {
+  if (period === 'morning') return 'Sáng'
+  if (period === 'afternoon') return 'Chiều'
+  if (period === 'other') return 'Khác'
+  return ''
+}
+
 export function AttendanceTab({ isAdmin }: Props) {
-  const [tasks, setTasks] = useState<ConfigTask[]>([])
   const [history, setHistory] = useState<AttendanceRecord[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [dayType, setDayType] = useState<'full' | 'half' | null>(null)
+  const [halfPeriod, setHalfPeriod] = useState<HalfPeriod | null>(null)
+  const [halfNote, setHalfNote] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
@@ -50,7 +58,6 @@ export function AttendanceTab({ isAdmin }: Props) {
   const [reminderMsg, setReminderMsg] = useState('')
   const [confirmedMonths, setConfirmedMonths] = useState<Set<string>>(new Set())
   const historyByDate = new Map(history.map((r) => [r.date, r]))
-  const hasWorkSelections = selected.size > 0 || overtimeChecked
   const todayIsConfirmed = confirmedMonths.has(today.slice(0, 7))
 
   function isDateConfirmed(date: string): boolean {
@@ -75,36 +82,43 @@ export function AttendanceTab({ isAdmin }: Props) {
 
   async function load() {
     setLoading(true)
-    const [taskList, historyList, confirmedList] = await Promise.all([
-      api.getTasks(),
-      api.getAttendance(),
-      api.getConfirmedMonths(),
-    ])
-    setTasks(taskList)
+    const [historyList, confirmedList] = await Promise.all([api.getAttendance(), api.getConfirmedMonths()])
     setHistory(historyList)
     setConfirmedMonths(new Set(confirmedList))
     const todayRec = historyList.find((r) => r.date === today)
     if (todayRec) {
       setOffChecked(todayRec.status === 'off')
       if (todayRec.status === 'worked') {
-        setSelected(new Set(JSON.parse(todayRec.tasks_json)))
-        if (todayRec.overtime_hours > 0) {
-          setOvertimeChecked(true)
-          setOvertimeHours(String(todayRec.overtime_hours))
-        }
+        setDayType(todayRec.day_fraction === 0.5 ? 'half' : 'full')
+        setHalfPeriod(todayRec.half_period)
+        setHalfNote(todayRec.half_note || '')
+      }
+      if (todayRec.overtime_hours > 0) {
+        setOvertimeChecked(true)
+        setOvertimeHours(String(todayRec.overtime_hours))
       }
     }
     setLoading(false)
   }
 
-  function toggleTask(name: string) {
+  function chooseDayType(type: 'full' | 'half') {
     setReminderMsg('')
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
-      return next
-    })
+    setOffChecked(false)
+    setDayType(type)
+    if (type === 'full') {
+      setHalfPeriod(null)
+      setHalfNote('')
+    }
+  }
+
+  function chooseOff(checked: boolean) {
+    setReminderMsg('')
+    setOffChecked(checked)
+    if (checked) {
+      setDayType(null)
+      setHalfPeriod(null)
+      setHalfNote('')
+    }
   }
 
   async function handleSave() {
@@ -113,12 +127,15 @@ export function AttendanceTab({ isAdmin }: Props) {
     setReminderMsg('')
     try {
       const record = offChecked
-        ? await api.saveAttendance(today, [], 'off')
+        ? await api.saveAttendance(today, [], 'off', overtimeChecked ? Number(overtimeHours) || 0 : 0)
         : await api.saveAttendance(
             today,
-            Array.from(selected),
+            [],
             'worked',
             overtimeChecked ? Number(overtimeHours) || 0 : 0,
+            dayType === 'half' ? 0.5 : 1,
+            dayType === 'half' ? halfPeriod : null,
+            dayType === 'half' ? halfNote : '',
           )
       setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
       setSavedMsg('Đã lưu chấm công!')
@@ -138,7 +155,7 @@ export function AttendanceTab({ isAdmin }: Props) {
       const records = await api.markOffRange(rangeStart, rangeEnd)
       const datesSet = new Set(records.map((r) => r.date))
       setHistory((prev) => [...records, ...prev.filter((r) => !datesSet.has(r.date))])
-      if (datesSet.has(today)) setSelected(new Set())
+      if (datesSet.has(today)) setDayType(null)
     } finally {
       setRangeSaving(false)
     }
@@ -161,7 +178,9 @@ export function AttendanceTab({ isAdmin }: Props) {
     await api.deleteAttendance(date)
     setHistory((prev) => prev.filter((r) => r.date !== date))
     if (date === today) {
-      setSelected(new Set())
+      setDayType(null)
+      setHalfPeriod(null)
+      setHalfNote('')
       setOvertimeChecked(false)
       setOvertimeHours('')
       setOffChecked(false)
@@ -216,35 +235,69 @@ export function AttendanceTab({ isAdmin }: Props) {
           )}
 
           <div className="checklist">
-            {tasks.map((task) => (
-              <label key={task.id} className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(task.task_name)}
-                  onChange={() => toggleTask(task.task_name)}
-                  disabled={offChecked || todayIsConfirmed}
-                />
-                <span>{task.task_name}</span>
-              </label>
-            ))}
-            {tasks.length === 0 && <p>Chưa có đầu việc nào, vào mục Cấu hình để thêm.</p>}
+            <label className={`checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+              <input
+                type="radio"
+                name="dayType"
+                checked={dayType === 'full'}
+                onChange={() => chooseDayType('full')}
+                disabled={todayIsConfirmed}
+              />
+              <span>Chấm công cả ngày</span>
+            </label>
+            <label className={`checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+              <input
+                type="radio"
+                name="dayType"
+                checked={dayType === 'half'}
+                onChange={() => chooseDayType('half')}
+                disabled={todayIsConfirmed}
+              />
+              <span>Chấm công nửa ngày</span>
+            </label>
+            {dayType === 'half' && !todayIsConfirmed && (
+              <div className="half-period-options">
+                {(['morning', 'afternoon', 'other'] as const).map((period) => (
+                  <label key={period} className="checklist-item half-period-item">
+                    <input
+                      type="radio"
+                      name="halfPeriod"
+                      checked={halfPeriod === period}
+                      onChange={() => setHalfPeriod(period)}
+                    />
+                    <span>{halfPeriodLabel(period)}</span>
+                  </label>
+                ))}
+                {halfPeriod === 'other' && (
+                  <label className="field-label">
+                    Ghi chú
+                    <input
+                      type="text"
+                      className="text-input"
+                      value={halfNote}
+                      onChange={(e) => setHalfNote(e.target.value)}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="overtime-section">
-            <label className={`checklist-item overtime-checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+            <label className={`checklist-item overtime-checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
               <input
                 type="checkbox"
                 checked={overtimeChecked}
-                disabled={offChecked || todayIsConfirmed}
+                disabled={todayIsConfirmed}
                 onChange={(e) => {
                   setReminderMsg('')
                   setOvertimeChecked(e.target.checked)
                 }}
               />
               <Clock3 size={18} className="overtime-icon" />
-              <span>Note tăng ca</span>
+              <span>Tăng Ca Theo Giờ</span>
             </label>
-            {overtimeChecked && !offChecked && !todayIsConfirmed && (
+            {overtimeChecked && !todayIsConfirmed && (
               <label className="field-label">
                 Số giờ tăng ca
                 <input
@@ -259,17 +312,12 @@ export function AttendanceTab({ isAdmin }: Props) {
           </div>
 
           <div className="off-section">
-            <label
-              className={`checklist-item off-checklist-item ${hasWorkSelections || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}
-            >
+            <label className={`checklist-item off-checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
               <input
                 type="checkbox"
                 checked={offChecked}
-                disabled={hasWorkSelections || todayIsConfirmed}
-                onChange={(e) => {
-                  setReminderMsg('')
-                  setOffChecked(e.target.checked)
-                }}
+                disabled={todayIsConfirmed}
+                onChange={(e) => chooseOff(e.target.checked)}
               />
               <MoonStar size={18} className="off-icon" />
               <span>Báo nghỉ hôm nay</span>
@@ -426,7 +474,14 @@ export function AttendanceTab({ isAdmin }: Props) {
                 }}
               >
                 <span className="calendar-day-number">{day}</span>
-                {record && <span className="calendar-day-mark">{isOff ? 'Nghỉ' : '1'}</span>}
+                {record && (
+                  <span className="calendar-day-mark">
+                    {isOff ? 'Nghỉ' : record.day_fraction === 0.5 ? '0.5' : '1'}
+                    {record.overtime_hours > 0 && (
+                      <span className="calendar-day-overtime">+{record.overtime_hours}h</span>
+                    )}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -445,9 +500,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               {isOff ? (
                 <span className="badge badge-off">Nghỉ</span>
               ) : (
-                <span className="badge">
-                  {doneTasks.length}/{tasks.length} việc
-                </span>
+                <span className="badge">{record.day_fraction === 0.5 ? 'Nửa ngày' : 'Cả ngày'}</span>
               )}
               {canEdit && (isAdmin || record.date === today) && (
                 <button className="btn btn-danger btn-small" onClick={() => handleDelete(record.date)}>
@@ -457,8 +510,35 @@ export function AttendanceTab({ isAdmin }: Props) {
             </div>
             {!isOff && (
               <div className="history-card-body">
-                {doneTasks.join(', ') || 'Không có việc nào'}
+                {record.day_fraction === 0.5 && record.half_period && (
+                  <div>
+                    Buổi: {halfPeriodLabel(record.half_period)}
+                    {record.half_period === 'other' && record.half_note ? ` (${record.half_note})` : ''}
+                  </div>
+                )}
+                {doneTasks.length > 0 && <div>Việc đã làm: {doneTasks.join(', ')}</div>}
                 {record.overtime_hours > 0 && <div>Tăng ca: {record.overtime_hours} giờ</div>}
+              </div>
+            )}
+            {isOff && record.overtime_hours > 0 && (
+              <div className="history-card-body">Tăng ca: {record.overtime_hours} giờ</div>
+            )}
+            {isAdmin && canEdit && (
+              <div className="history-card-body calendar-quick-actions">
+                <button
+                  className="btn btn-primary btn-small"
+                  onClick={() => handleCalendarQuickSave(record.date, 'worked')}
+                  disabled={calendarQuickSaving || record.status === 'worked'}
+                >
+                  {calendarQuickSaving ? '...' : 'Sửa: Chấm công'}
+                </button>
+                <button
+                  className="btn btn-off btn-small"
+                  onClick={() => handleCalendarQuickSave(record.date, 'off')}
+                  disabled={calendarQuickSaving || isOff}
+                >
+                  {calendarQuickSaving ? '...' : 'Sửa: Báo nghỉ'}
+                </button>
               </div>
             )}
             {!canEdit && (

@@ -252,6 +252,31 @@
   cursor: not-allowed;
 }
 
+.checklist-item input[type='radio'] {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--accent);
+}
+
+.half-period-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 4px 12px;
+  padding-left: 20px;
+  border-left: 2px solid var(--border);
+}
+
+.half-period-item {
+  padding: 8px 12px;
+  font-size: 14px;
+  flex: 1 1 auto;
+}
+
+.half-period-options .field-label {
+  flex-basis: 100%;
+}
+
 .reminder-banner {
   color: #8a1f1f;
   font-weight: 700;
@@ -350,9 +375,18 @@
 }
 
 .calendar-day-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   font-size: 18px;
   font-weight: 700;
   color: var(--accent-dark);
+}
+
+.calendar-day-overtime {
+  font-size: 9px;
+  font-weight: 600;
+  color: #d99a14;
 }
 
 .calendar-cell.is-off .calendar-day-mark {
@@ -1051,6 +1085,28 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+}
+
+.range-choice-box {
+  text-align: center;
+}
+
+.range-choice-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.range-choice-toggle .btn {
+  flex: 1;
+}
+
+.range-choice-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  margin-bottom: 14px;
 }
 
 .invoice-confirmed-banner {

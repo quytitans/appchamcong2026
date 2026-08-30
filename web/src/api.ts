@@ -4,6 +4,7 @@ import type {
   ConfigTask,
   Expense,
   ExpenseSummary,
+  HalfPeriod,
   PayrollSettings,
   Settlement,
 } from './types'
@@ -42,10 +43,18 @@ export const api = {
   deleteTask: (id: number) => request<void>(`/api/config/tasks/${id}`, { method: 'DELETE' }),
 
   getAttendance: () => request<AttendanceRecord[]>('/api/attendance'),
-  saveAttendance: (date: string, tasks: string[], status: AttendanceStatus = 'worked', overtime_hours = 0) =>
+  saveAttendance: (
+    date: string,
+    tasks: string[],
+    status: AttendanceStatus = 'worked',
+    overtime_hours = 0,
+    day_fraction = 1,
+    half_period: HalfPeriod | null = null,
+    half_note = '',
+  ) =>
     request<AttendanceRecord>('/api/attendance', {
       method: 'POST',
-      body: JSON.stringify({ date, tasks, status, overtime_hours }),
+      body: JSON.stringify({ date, tasks, status, overtime_hours, day_fraction, half_period, half_note }),
     }),
   deleteAttendance: (date: string) => request<void>(`/api/attendance/${date}`, { method: 'DELETE' }),
   markOffRange: (start: string, end: string) =>
