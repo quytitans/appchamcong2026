@@ -20,7 +20,8 @@ attendanceRouter.post('/', (req, res) => {
     return res.status(400).json({ error: 'date va tasks (array) la bat buoc' })
   }
   const finalStatus = status === 'off' ? 'off' : 'worked'
-  const finalOvertimeHours = typeof overtime_hours === 'number' && overtime_hours > 0 ? overtime_hours : 0
+  const finalOvertimeHours =
+    finalStatus === 'worked' && typeof overtime_hours === 'number' && overtime_hours > 0 ? overtime_hours : 0
   const finalDayFraction = finalStatus === 'worked' && day_fraction === 0.5 ? 0.5 : finalStatus === 'worked' ? 1 : 0
   const finalHalfPeriod = finalDayFraction === 0.5 && HALF_PERIODS.includes(half_period) ? half_period : null
   const finalHalfNote = finalHalfPeriod === 'other' && typeof half_note === 'string' ? half_note : ''

@@ -6,7 +6,6 @@ import './db.js'
 import { attendanceRouter } from './routes/attendance.js'
 import { authRouter } from './routes/auth.js'
 import { expensesRouter } from './routes/expenses.js'
-import { configRouter } from './routes/config.js'
 import { payrollRouter } from './routes/payroll.js'
 import { settlementsRouter } from './routes/settlements.js'
 
@@ -19,7 +18,6 @@ app.use(express.json())
 app.use('/api/attendance', attendanceRouter)
 app.use('/api/auth', authRouter)
 app.use('/api/expenses', expensesRouter)
-app.use('/api/config', configRouter)
 app.use('/api/payroll', payrollRouter)
 app.use('/api/settlements', settlementsRouter)
 

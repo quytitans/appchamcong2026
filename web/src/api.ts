@@ -1,7 +1,6 @@
 import type {
   AttendanceRecord,
   AttendanceStatus,
-  ConfigTask,
   Expense,
   ExpenseSummary,
   HalfPeriod,
@@ -34,13 +33,6 @@ export const api = {
     request<void>('/api/auth/user-password', { method: 'PUT', body: JSON.stringify({ password }) }),
   setAdminPassword: (password: string) =>
     request<void>('/api/auth/admin-password', { method: 'PUT', body: JSON.stringify({ password }) }),
-
-  getTasks: () => request<ConfigTask[]>('/api/config/tasks'),
-  addTask: (task_name: string) =>
-    request<ConfigTask>('/api/config/tasks', { method: 'POST', body: JSON.stringify({ task_name }) }),
-  updateTask: (id: number, task_name: string) =>
-    request<ConfigTask>(`/api/config/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ task_name }) }),
-  deleteTask: (id: number) => request<void>(`/api/config/tasks/${id}`, { method: 'DELETE' }),
 
   getAttendance: () => request<AttendanceRecord[]>('/api/attendance'),
   saveAttendance: (

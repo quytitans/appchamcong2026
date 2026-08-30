@@ -422,8 +422,7 @@
   padding-left: 18px;
 }
 
-.off-range-form,
-.backfill-form {
+.off-range-form {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -671,19 +670,6 @@
 }
 
 /* Admin config */
-.config-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.config-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
 /* Modal */
 .modal-overlay {
   position: fixed;

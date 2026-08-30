@@ -1,8 +1,3 @@
-export interface ConfigTask {
-  id: number
-  task_name: string
-}
-
 export type AttendanceStatus = 'worked' | 'off'
 
 export type HalfPeriod = 'morning' | 'afternoon' | 'other'

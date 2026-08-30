@@ -9,11 +9,6 @@ export const db = new DatabaseSync(dbPath)
 db.exec('PRAGMA journal_mode = WAL')
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS config_tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    task_name TEXT NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS attendance (
     date TEXT PRIMARY KEY,
     tasks_json TEXT NOT NULL,
@@ -90,14 +85,6 @@ if (!payrollColumns.some((c) => c.name === 'overtime_rate')) {
 const confirmColumns = db.prepare('PRAGMA table_info(monthly_confirmations)').all() as { name: string }[]
 if (!confirmColumns.some((c) => c.name === 'settlement_id')) {
   db.exec('ALTER TABLE monthly_confirmations ADD COLUMN settlement_id INTEGER')
-}
-
-const DEFAULT_TASKS = ['Dọn nhà', 'Nấu ăn', 'Giặt/ủi đồ', 'Rửa chén', 'Đi chợ', 'Lau nhà vệ sinh', 'Đón/đưa trẻ']
-
-const taskCount = db.prepare('SELECT COUNT(*) as count FROM config_tasks').get() as { count: number }
-if (taskCount.count === 0) {
-  const insert = db.prepare('INSERT INTO config_tasks (task_name) VALUES (?)')
-  for (const name of DEFAULT_TASKS) insert.run(name)
 }
 
 // Chu nhat duoc mac dinh danh dau nghi truoc; nguoi dung van co the sua lai vao dung ngay do,

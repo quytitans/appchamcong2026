@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Clock3, Lock, MoonStar } from 'lucide-react'
+import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, HalfPeriod } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
+import { DayAttendanceForm } from './DayAttendanceForm'
 import {
   WEEKDAY_LABELS,
   currentMonthPrefix,
@@ -32,29 +33,19 @@ function halfPeriodLabel(period: HalfPeriod | null): string {
 
 export function AttendanceTab({ isAdmin }: Props) {
   const [history, setHistory] = useState<AttendanceRecord[]>([])
-  const [dayType, setDayType] = useState<'full' | 'half' | null>(null)
-  const [halfPeriod, setHalfPeriod] = useState<HalfPeriod | null>(null)
-  const [halfNote, setHalfNote] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [savedMsg, setSavedMsg] = useState('')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const today = todayStr()
   const [rangeStart, setRangeStart] = useState(today)
   const [rangeEnd, setRangeEnd] = useState(today)
   const [rangeSaving, setRangeSaving] = useState(false)
   const [backfillDate, setBackfillDate] = useState(today)
-  const [backfillSaving, setBackfillSaving] = useState(false)
-  const [backfillMsg, setBackfillMsg] = useState('')
-  const [overtimeChecked, setOvertimeChecked] = useState(false)
-  const [overtimeHours, setOvertimeHours] = useState('')
   const { confirm, modal: confirmModal } = useConfirm()
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix())
   const [calendarQuickSaving, setCalendarQuickSaving] = useState(false)
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
   const monthCells = getMonthCells(calendarMonth)
-  const [offChecked, setOffChecked] = useState(false)
   const [reminderMsg, setReminderMsg] = useState('')
   const [confirmedMonths, setConfirmedMonths] = useState<Set<string>>(new Set())
   const historyByDate = new Map(history.map((r) => [r.date, r]))
@@ -85,65 +76,7 @@ export function AttendanceTab({ isAdmin }: Props) {
     const [historyList, confirmedList] = await Promise.all([api.getAttendance(), api.getConfirmedMonths()])
     setHistory(historyList)
     setConfirmedMonths(new Set(confirmedList))
-    const todayRec = historyList.find((r) => r.date === today)
-    if (todayRec) {
-      setOffChecked(todayRec.status === 'off')
-      if (todayRec.status === 'worked') {
-        setDayType(todayRec.day_fraction === 0.5 ? 'half' : 'full')
-        setHalfPeriod(todayRec.half_period)
-        setHalfNote(todayRec.half_note || '')
-      }
-      if (todayRec.overtime_hours > 0) {
-        setOvertimeChecked(true)
-        setOvertimeHours(String(todayRec.overtime_hours))
-      }
-    }
     setLoading(false)
-  }
-
-  function chooseDayType(type: 'full' | 'half') {
-    setReminderMsg('')
-    setOffChecked(false)
-    setDayType(type)
-    if (type === 'full') {
-      setHalfPeriod(null)
-      setHalfNote('')
-    }
-  }
-
-  function chooseOff(checked: boolean) {
-    setReminderMsg('')
-    setOffChecked(checked)
-    if (checked) {
-      setDayType(null)
-      setHalfPeriod(null)
-      setHalfNote('')
-      setOvertimeChecked(false)
-      setOvertimeHours('')
-    }
-  }
-
-  async function handleSave() {
-    setSaving(true)
-    setSavedMsg('')
-    setReminderMsg('')
-    try {
-      const record = offChecked
-        ? await api.saveAttendance(today, [], 'off', overtimeChecked ? Number(overtimeHours) || 0 : 0)
-        : await api.saveAttendance(
-            today,
-            [],
-            'worked',
-            overtimeChecked ? Number(overtimeHours) || 0 : 0,
-            dayType === 'half' ? 0.5 : 1,
-            dayType === 'half' ? halfPeriod : null,
-            dayType === 'half' ? halfNote : '',
-          )
-      setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
-      setSavedMsg('Đã lưu chấm công!')
-    } finally {
-      setSaving(false)
-    }
   }
 
   async function handleMarkOffRange() {
@@ -157,21 +90,8 @@ export function AttendanceTab({ isAdmin }: Props) {
       const records = await api.markOffRange(rangeStart, rangeEnd)
       const datesSet = new Set(records.map((r) => r.date))
       setHistory((prev) => [...records, ...prev.filter((r) => !datesSet.has(r.date))])
-      if (datesSet.has(today)) setDayType(null)
     } finally {
       setRangeSaving(false)
-    }
-  }
-
-  async function handleBackfillSave() {
-    setBackfillSaving(true)
-    setBackfillMsg('')
-    try {
-      const record = await api.saveAttendance(backfillDate, [], 'worked')
-      setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])
-      setBackfillMsg('Đã chấm công bù!')
-    } finally {
-      setBackfillSaving(false)
     }
   }
 
@@ -180,13 +100,6 @@ export function AttendanceTab({ isAdmin }: Props) {
     await api.deleteAttendance(date)
     setHistory((prev) => prev.filter((r) => r.date !== date))
     if (date === today) {
-      setDayType(null)
-      setHalfPeriod(null)
-      setHalfNote('')
-      setOvertimeChecked(false)
-      setOvertimeHours('')
-      setOffChecked(false)
-      setSavedMsg('')
       setReminderMsg('Hôm nay chưa có chấm công, vui lòng chấm công hoặc báo nghỉ lại!')
     }
     if (date === selectedDate) setSelectedDate(null)
@@ -224,114 +137,21 @@ export function AttendanceTab({ isAdmin }: Props) {
             Chấm công hôm nay ({formatDateVn(today)})
           </h2>
 
-          {todayIsConfirmed && (
-            <div className="month-locked-notice">
-              <Lock size={14} /> Tháng này đã xác nhận CK — không thể thay đổi chấm công
-            </div>
-          )}
-
           {reminderMsg && (
             <div className="off-banner reminder-banner">
               <span>{reminderMsg}</span>
             </div>
           )}
 
-          <div className="checklist">
-            <label className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
-              <input
-                type="radio"
-                name="dayType"
-                checked={dayType === 'full'}
-                onChange={() => chooseDayType('full')}
-                disabled={offChecked || todayIsConfirmed}
-              />
-              <span>Chấm công cả ngày</span>
-            </label>
-            <label className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
-              <input
-                type="radio"
-                name="dayType"
-                checked={dayType === 'half'}
-                onChange={() => chooseDayType('half')}
-                disabled={offChecked || todayIsConfirmed}
-              />
-              <span>Chấm công nửa ngày</span>
-            </label>
-            {dayType === 'half' && !offChecked && !todayIsConfirmed && (
-              <div className="half-period-options">
-                {(['morning', 'afternoon', 'other'] as const).map((period) => (
-                  <label key={period} className="checklist-item half-period-item">
-                    <input
-                      type="radio"
-                      name="halfPeriod"
-                      checked={halfPeriod === period}
-                      onChange={() => setHalfPeriod(period)}
-                    />
-                    <span>{halfPeriodLabel(period)}</span>
-                  </label>
-                ))}
-                {halfPeriod === 'other' && (
-                  <label className="field-label">
-                    Ghi chú
-                    <input
-                      type="text"
-                      className="text-input"
-                      value={halfNote}
-                      onChange={(e) => setHalfNote(e.target.value)}
-                    />
-                  </label>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="overtime-section">
-            <label
-              className={`checklist-item overtime-checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={overtimeChecked}
-                disabled={offChecked || todayIsConfirmed}
-                onChange={(e) => {
-                  setReminderMsg('')
-                  setOvertimeChecked(e.target.checked)
-                }}
-              />
-              <Clock3 size={18} className="overtime-icon" />
-              <span>Tăng Ca Theo Giờ</span>
-            </label>
-            {overtimeChecked && !offChecked && !todayIsConfirmed && (
-              <label className="field-label">
-                Số giờ tăng ca
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  className="text-input"
-                  value={overtimeHours}
-                  onChange={(e) => setOvertimeHours(e.target.value)}
-                />
-              </label>
-            )}
-          </div>
-
-          <div className="off-section">
-            <label className={`checklist-item off-checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
-              <input
-                type="checkbox"
-                checked={offChecked}
-                disabled={todayIsConfirmed}
-                onChange={(e) => chooseOff(e.target.checked)}
-              />
-              <MoonStar size={18} className="off-icon" />
-              <span>Báo nghỉ hôm nay</span>
-            </label>
-          </div>
-
-          <button className="btn btn-primary btn-large" onClick={handleSave} disabled={saving || todayIsConfirmed}>
-            {saving ? 'Đang lưu...' : 'Lưu chấm công'}
-          </button>
-          {savedMsg && <p className="success-text">{savedMsg}</p>}
+          <DayAttendanceForm
+            date={today}
+            record={historyByDate.get(today)}
+            locked={todayIsConfirmed}
+            onSaved={(record) => {
+              setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
+              setReminderMsg('')
+            }}
+          />
         </>
       )}
 
@@ -339,31 +159,23 @@ export function AttendanceTab({ isAdmin }: Props) {
         <>
           <h2 className="history-title">
             <CalendarCheck size={18} className="title-icon" />
-            Chấm công bù (Admin)
+            Chấm công (Admin)
           </h2>
-          <div className="backfill-form">
-            <label className="field-label">
-              Chọn ngày (quá khứ hoặc tương lai)
-              <input
-                type="date"
-                value={backfillDate}
-                onChange={(e) => {
-                  setBackfillDate(e.target.value)
-                  setBackfillMsg('')
-                }}
-                className="text-input"
-              />
-            </label>
-            {backfillIsConfirmed && (
-              <div className="month-locked-notice">
-                <Lock size={14} /> Tháng {backfillDate.slice(0, 7)} đã xác nhận CK — không thể chấm công bù
-              </div>
-            )}
-            <button className="btn btn-primary btn-large" onClick={handleBackfillSave} disabled={backfillSaving || backfillIsConfirmed}>
-              {backfillSaving ? 'Đang lưu...' : 'Chấm công'}
-            </button>
-            {backfillMsg && <p className="success-text">{backfillMsg}</p>}
-          </div>
+          <label className="field-label">
+            Chọn ngày (quá khứ hoặc tương lai)
+            <input
+              type="date"
+              value={backfillDate}
+              onChange={(e) => setBackfillDate(e.target.value)}
+              className="text-input"
+            />
+          </label>
+          <DayAttendanceForm
+            date={backfillDate}
+            record={historyByDate.get(backfillDate)}
+            locked={backfillIsConfirmed}
+            onSaved={(record) => setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])}
+          />
 
           <h2 className="history-title">
             <CalendarOff size={18} className="title-icon" />
