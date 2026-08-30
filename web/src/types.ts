@@ -40,7 +40,7 @@ export interface ExpenseSummary {
 
 export interface PayrollSettings {
   month: string
-  daily_wage: number
+  monthly_wage: number
   monthly_bonus: number
   overtime_rate: number
 }

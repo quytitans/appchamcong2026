@@ -60,10 +60,10 @@ export const api = {
     }),
   revertMonthConfirmation: (month: string) =>
     request<void>(`/api/payroll/${month}/confirm`, { method: 'DELETE' }),
-  savePayroll: (month: string, daily_wage: number, monthly_bonus: number, overtime_rate: number) =>
+  savePayroll: (month: string, monthly_wage: number, monthly_bonus: number, overtime_rate: number) =>
     request<PayrollSettings>(`/api/payroll/${month}`, {
       method: 'PUT',
-      body: JSON.stringify({ daily_wage, monthly_bonus, overtime_rate }),
+      body: JSON.stringify({ monthly_wage, monthly_bonus, overtime_rate }),
     }),
 
   getExpenses: () => request<Expense[]>('/api/expenses'),

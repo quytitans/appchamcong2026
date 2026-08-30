@@ -855,6 +855,19 @@
   opacity: 0.88;
 }
 
+/* Highlight button — green for the primary salary-calc action */
+.btn-highlight {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #fff;
+  gap: 8px;
+  margin-top: 4px;
+  box-shadow: 0 3px 12px rgba(16, 185, 129, 0.35);
+}
+
+.btn-highlight:active {
+  opacity: 0.88;
+}
+
 .btn-warning {
   background: #fff7ed;
   color: #b45309;
@@ -1066,26 +1079,37 @@
   gap: 6px;
 }
 
-.range-choice-box {
-  text-align: center;
-}
-
-.range-choice-toggle {
+.salary-mode-toggle {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.range-choice-toggle .btn {
+.salary-mode-toggle .btn {
   flex: 1;
 }
 
-.range-choice-dates {
+.salary-month-picker {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  text-align: left;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.salary-month-picker > input[type='month'] {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 15px;
+}
+
+.salary-range-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
 }
 
 .invoice-confirmed-banner {

@@ -26,7 +26,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS payroll_settings (
     month TEXT PRIMARY KEY,
-    daily_wage INTEGER NOT NULL DEFAULT 0,
+    monthly_wage INTEGER NOT NULL DEFAULT 0,
     monthly_bonus INTEGER NOT NULL DEFAULT 0,
     overtime_rate INTEGER NOT NULL DEFAULT 0
   );
@@ -80,6 +80,9 @@ if (!expenseColumns.some((c) => c.name === 'settlement_id')) {
 const payrollColumns = db.prepare('PRAGMA table_info(payroll_settings)').all() as { name: string }[]
 if (!payrollColumns.some((c) => c.name === 'overtime_rate')) {
   db.exec('ALTER TABLE payroll_settings ADD COLUMN overtime_rate INTEGER NOT NULL DEFAULT 0')
+}
+if (payrollColumns.some((c) => c.name === 'daily_wage') && !payrollColumns.some((c) => c.name === 'monthly_wage')) {
+  db.exec('ALTER TABLE payroll_settings RENAME COLUMN daily_wage TO monthly_wage')
 }
 
 const confirmColumns = db.prepare('PRAGMA table_info(monthly_confirmations)').all() as { name: string }[]

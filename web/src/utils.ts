@@ -83,6 +83,15 @@ export function lastDayOfMonth(monthPrefix: string): string {
   return `${monthPrefix}-${String(lastDay).padStart(2, '0')}`
 }
 
+export function daysInMonth(monthPrefix: string): number {
+  const [y, m] = monthPrefix.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+
+export function countDaysInclusive(start: string, end: string): number {
+  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
+}
+
 export function getMonthCells(monthPrefix: string): (string | null)[] {
   const [yearStr, monthStr] = monthPrefix.split('-')
   const year = Number(yearStr)
