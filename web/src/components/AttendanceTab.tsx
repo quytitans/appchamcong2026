@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CalendarCheck, CalendarOff, CalendarRange, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
+import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { api } from '../api'
 import type { AttendanceRecord, HalfPeriod } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
@@ -36,9 +36,6 @@ export function AttendanceTab({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const today = todayStr()
-  const [rangeStart, setRangeStart] = useState(today)
-  const [rangeEnd, setRangeEnd] = useState(today)
-  const [rangeSaving, setRangeSaving] = useState(false)
   const [backfillDate, setBackfillDate] = useState(today)
   const { confirm, modal: confirmModal } = useConfirm()
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix())
@@ -55,18 +52,6 @@ export function AttendanceTab({ isAdmin }: Props) {
     return confirmedMonths.has(date.slice(0, 7))
   }
 
-  function rangeOverlapsConfirmed(start: string, end: string): boolean {
-    let cur = start.slice(0, 7)
-    const endMonth = end.slice(0, 7)
-    while (cur <= endMonth) {
-      if (confirmedMonths.has(cur)) return true
-      const [y, m] = cur.split('-').map(Number)
-      const next = new Date(y, m, 1)
-      cur = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
-    }
-    return false
-  }
-
   useEffect(() => {
     load()
   }, [])
@@ -77,22 +62,6 @@ export function AttendanceTab({ isAdmin }: Props) {
     setHistory(historyList)
     setConfirmedMonths(new Set(confirmedList))
     setLoading(false)
-  }
-
-  async function handleMarkOffRange() {
-    if (rangeStart > rangeEnd) {
-      alert('Ngày bắt đầu phải trước ngày kết thúc')
-      return
-    }
-    if (!(await confirm(`Báo nghỉ từ ${formatDateVn(rangeStart)} đến ${formatDateVn(rangeEnd)}?`))) return
-    setRangeSaving(true)
-    try {
-      const records = await api.markOffRange(rangeStart, rangeEnd)
-      const datesSet = new Set(records.map((r) => r.date))
-      setHistory((prev) => [...records, ...prev.filter((r) => !datesSet.has(r.date))])
-    } finally {
-      setRangeSaving(false)
-    }
   }
 
   async function handleDelete(date: string) {
@@ -126,7 +95,6 @@ export function AttendanceTab({ isAdmin }: Props) {
   if (loading) return <p className="loading">Đang tải...</p>
 
   const backfillIsConfirmed = isDateConfirmed(backfillDate)
-  const rangeIsConfirmed = rangeOverlapsConfirmed(rangeStart, rangeEnd)
 
   return (
     <div className="tab-content">
@@ -176,39 +144,6 @@ export function AttendanceTab({ isAdmin }: Props) {
             locked={backfillIsConfirmed}
             onSaved={(record) => setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])}
           />
-
-          <h2 className="history-title">
-            <CalendarOff size={18} className="title-icon" />
-            Báo nghỉ nhiều ngày
-          </h2>
-          <div className="off-range-form">
-            <label className="field-label">
-              Từ ngày
-              <input
-                type="date"
-                value={rangeStart}
-                onChange={(e) => setRangeStart(e.target.value)}
-                className="text-input"
-              />
-            </label>
-            <label className="field-label">
-              Đến ngày
-              <input
-                type="date"
-                value={rangeEnd}
-                onChange={(e) => setRangeEnd(e.target.value)}
-                className="text-input"
-              />
-            </label>
-            {rangeIsConfirmed && (
-              <div className="month-locked-notice">
-                <Lock size={14} /> Khoảng ngày này chứa tháng đã xác nhận CK — không thể báo nghỉ
-              </div>
-            )}
-            <button className="btn btn-off btn-large" onClick={handleMarkOffRange} disabled={rangeSaving || rangeIsConfirmed}>
-              {rangeSaving ? 'Đang lưu...' : 'Báo nghỉ các ngày này'}
-            </button>
-          </div>
         </>
       )}
 

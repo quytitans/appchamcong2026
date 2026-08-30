@@ -49,8 +49,6 @@ export const api = {
       body: JSON.stringify({ date, tasks, status, overtime_hours, day_fraction, half_period, half_note }),
     }),
   deleteAttendance: (date: string) => request<void>(`/api/attendance/${date}`, { method: 'DELETE' }),
-  markOffRange: (start: string, end: string) =>
-    request<AttendanceRecord[]>('/api/attendance/off-range', { method: 'POST', body: JSON.stringify({ start, end }) }),
 
   getConfirmedMonths: () => request<string[]>('/api/payroll/confirmations'),
   getPayroll: (month: string) => request<PayrollSettings>(`/api/payroll/${month}`),
