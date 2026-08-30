@@ -444,7 +444,7 @@ export function SalaryTab() {
                   <button className="btn btn-secondary btn-small" onClick={() => setSummaryStep('closed')}>
                     Đóng
                   </button>
-                  {!confirmed && rangeMode === 'month' && (
+                  {!confirmed && (
                     <button
                       className="btn btn-primary btn-small"
                       onClick={handleConfirmTransfer}
