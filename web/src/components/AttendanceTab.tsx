@@ -118,6 +118,8 @@ export function AttendanceTab({ isAdmin }: Props) {
       setDayType(null)
       setHalfPeriod(null)
       setHalfNote('')
+      setOvertimeChecked(false)
+      setOvertimeHours('')
     }
   }
 
@@ -235,27 +237,27 @@ export function AttendanceTab({ isAdmin }: Props) {
           )}
 
           <div className="checklist">
-            <label className={`checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+            <label className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
               <input
                 type="radio"
                 name="dayType"
                 checked={dayType === 'full'}
                 onChange={() => chooseDayType('full')}
-                disabled={todayIsConfirmed}
+                disabled={offChecked || todayIsConfirmed}
               />
               <span>Chấm công cả ngày</span>
             </label>
-            <label className={`checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+            <label className={`checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
               <input
                 type="radio"
                 name="dayType"
                 checked={dayType === 'half'}
                 onChange={() => chooseDayType('half')}
-                disabled={todayIsConfirmed}
+                disabled={offChecked || todayIsConfirmed}
               />
               <span>Chấm công nửa ngày</span>
             </label>
-            {dayType === 'half' && !todayIsConfirmed && (
+            {dayType === 'half' && !offChecked && !todayIsConfirmed && (
               <div className="half-period-options">
                 {(['morning', 'afternoon', 'other'] as const).map((period) => (
                   <label key={period} className="checklist-item half-period-item">
@@ -284,11 +286,13 @@ export function AttendanceTab({ isAdmin }: Props) {
           </div>
 
           <div className="overtime-section">
-            <label className={`checklist-item overtime-checklist-item ${todayIsConfirmed ? 'checklist-item-disabled' : ''}`}>
+            <label
+              className={`checklist-item overtime-checklist-item ${offChecked || todayIsConfirmed ? 'checklist-item-disabled' : ''}`}
+            >
               <input
                 type="checkbox"
                 checked={overtimeChecked}
-                disabled={todayIsConfirmed}
+                disabled={offChecked || todayIsConfirmed}
                 onChange={(e) => {
                   setReminderMsg('')
                   setOvertimeChecked(e.target.checked)
@@ -297,7 +301,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               <Clock3 size={18} className="overtime-icon" />
               <span>Tăng Ca Theo Giờ</span>
             </label>
-            {overtimeChecked && !todayIsConfirmed && (
+            {overtimeChecked && !offChecked && !todayIsConfirmed && (
               <label className="field-label">
                 Số giờ tăng ca
                 <input
