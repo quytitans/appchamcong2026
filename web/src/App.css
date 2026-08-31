@@ -36,6 +36,13 @@
   flex-shrink: 0;
 }
 
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .app-header-action {
   display: flex;
   align-items: center;
