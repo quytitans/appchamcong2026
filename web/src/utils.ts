@@ -38,12 +38,11 @@ function computeStatsForRecords(rangeRecords: AttendanceRecord[]): AttendanceSta
   const workedDays = rangeRecords
     .filter((r) => r.status === 'worked')
     .reduce((sum, r) => sum + (r.day_fraction ?? 1), 0)
-  const offDays = rangeRecords.filter((r) => r.status === 'off').length
+  // Ngay le/nghi ngoai le la admin chu dong mien tru, khong tinh vao thong ke nghi cua nguoi lao dong
+  const personalOffRecords = rangeRecords.filter((r) => r.status === 'off' && !r.off_type)
+  const offDays = personalOffRecords.length
 
-  const offDates = rangeRecords
-    .filter((r) => r.status === 'off')
-    .map((r) => r.date)
-    .sort()
+  const offDates = personalOffRecords.map((r) => r.date).sort()
 
   const streaks: AttendanceStreak[] = []
   let i = 0
@@ -62,34 +61,14 @@ function computeStatsForRecords(rangeRecords: AttendanceRecord[]): AttendanceSta
 
   const totalOvertimeHours = rangeRecords.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)
 
-  return { workedDays, offDays, streaks, totalOvertimeHours }
+  // Ngay le van duoc tinh la cong khi tong ket luong, du khong tinh vao "So cong" hien thi thuong ngay
+  const holidayCount = rangeRecords.filter((r) => r.status === 'off' && r.off_type === 'holiday').length
+
+  return { workedDays, offDays, streaks, totalOvertimeHours, holidayCount }
 }
 
 export function computeMonthStats(records: AttendanceRecord[], monthPrefix: string): AttendanceStats {
   return computeStatsForRecords(records.filter((r) => r.date.startsWith(monthPrefix)))
-}
-
-export function computeRangeStats(records: AttendanceRecord[], start: string, end: string): AttendanceStats {
-  return computeStatsForRecords(records.filter((r) => r.date >= start && r.date <= end))
-}
-
-export function firstDayOfMonth(monthPrefix: string): string {
-  return `${monthPrefix}-01`
-}
-
-export function lastDayOfMonth(monthPrefix: string): string {
-  const [y, m] = monthPrefix.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  return `${monthPrefix}-${String(lastDay).padStart(2, '0')}`
-}
-
-export function daysInMonth(monthPrefix: string): number {
-  const [y, m] = monthPrefix.split('-').map(Number)
-  return new Date(y, m, 0).getDate()
-}
-
-export function countDaysInclusive(start: string, end: string): number {
-  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
 }
 
 export function getMonthCells(monthPrefix: string): (string | null)[] {

@@ -7,6 +7,7 @@ import { AdminConfigTab } from './components/AdminConfigTab'
 import { SalaryTab } from './components/SalaryTab'
 import { PasswordModal } from './components/PasswordModal'
 import { AccessGate } from './components/AccessGate'
+import { LeafLogo } from './components/LeafLogo'
 
 type Tab = 'attendance' | 'expense' | 'salary' | 'admin'
 
@@ -36,7 +37,7 @@ function App() {
     <div className="app">
       <header className="app-header">
         <h1>
-          <CalendarCheck size={22} className="app-header-icon" />
+          <LeafLogo size={22} className="app-header-icon" />
           Chấm công &amp; Tiền đi chợ
         </h1>
         {isAdmin ? (

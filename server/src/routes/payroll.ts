@@ -11,7 +11,17 @@ payrollRouter.get('/confirmations', (_req, res) => {
 
 payrollRouter.get('/:month', (req, res) => {
   const row = db.prepare('SELECT * FROM payroll_settings WHERE month = ?').get(req.params.month)
-  res.json(row ?? { month: req.params.month, monthly_wage: 0, monthly_bonus: 0, overtime_rate: 0 })
+  res.json(
+    row ?? {
+      month: req.params.month,
+      monthly_wage: 0,
+      monthly_bonus: 0,
+      overtime_rate: 0,
+      bonus_note: '',
+      other_amount: 0,
+      other_note: '',
+    },
+  )
 })
 
 payrollRouter.get('/:month/confirmed', (req, res) => {
@@ -53,17 +63,23 @@ payrollRouter.delete('/:month/confirm', (req, res) => {
 })
 
 payrollRouter.put('/:month', (req, res) => {
-  const { monthly_wage, monthly_bonus, overtime_rate } = req.body
+  const { monthly_wage, monthly_bonus, overtime_rate, bonus_note, other_amount, other_note } = req.body
   if (typeof monthly_wage !== 'number' || typeof monthly_bonus !== 'number' || typeof overtime_rate !== 'number') {
     return res.status(400).json({ error: 'monthly_wage, monthly_bonus va overtime_rate la bat buoc' })
   }
+  const finalBonusNote = monthly_bonus === 0 && typeof bonus_note === 'string' ? bonus_note : ''
+  const finalOtherAmount = typeof other_amount === 'number' ? other_amount : 0
+  const finalOtherNote = finalOtherAmount !== 0 && typeof other_note === 'string' ? other_note : ''
   db.prepare(`
-    INSERT INTO payroll_settings (month, monthly_wage, monthly_bonus, overtime_rate)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO payroll_settings (month, monthly_wage, monthly_bonus, overtime_rate, bonus_note, other_amount, other_note)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(month) DO UPDATE SET
       monthly_wage = excluded.monthly_wage,
       monthly_bonus = excluded.monthly_bonus,
-      overtime_rate = excluded.overtime_rate
-  `).run(req.params.month, monthly_wage, monthly_bonus, overtime_rate)
+      overtime_rate = excluded.overtime_rate,
+      bonus_note = excluded.bonus_note,
+      other_amount = excluded.other_amount,
+      other_note = excluded.other_note
+  `).run(req.params.month, monthly_wage, monthly_bonus, overtime_rate, finalBonusNote, finalOtherAmount, finalOtherNote)
   res.json(db.prepare('SELECT * FROM payroll_settings WHERE month = ?').get(req.params.month))
 })

@@ -4,6 +4,7 @@ import { db, ensureSundayOffRecords } from '../db.js'
 export const attendanceRouter = Router()
 
 const HALF_PERIODS = ['morning', 'afternoon', 'other']
+const OFF_TYPES = ['holiday', 'exception']
 
 attendanceRouter.get('/', (req, res) => {
   ensureSundayOffRecords()
@@ -15,7 +16,7 @@ attendanceRouter.get('/', (req, res) => {
 })
 
 attendanceRouter.post('/', (req, res) => {
-  const { date, tasks, status, overtime_hours, day_fraction, half_period, half_note } = req.body
+  const { date, tasks, status, overtime_hours, day_fraction, half_period, half_note, off_type } = req.body
   if (!date || !Array.isArray(tasks)) {
     return res.status(400).json({ error: 'date va tasks (array) la bat buoc' })
   }
@@ -25,10 +26,11 @@ attendanceRouter.post('/', (req, res) => {
   const finalDayFraction = finalStatus === 'worked' && day_fraction === 0.5 ? 0.5 : finalStatus === 'worked' ? 1 : 0
   const finalHalfPeriod = finalDayFraction === 0.5 && HALF_PERIODS.includes(half_period) ? half_period : null
   const finalHalfNote = finalHalfPeriod === 'other' && typeof half_note === 'string' ? half_note : ''
+  const finalOffType = finalStatus === 'off' && OFF_TYPES.includes(off_type) ? off_type : null
   const tasksJson = JSON.stringify(tasks)
   db.prepare(`
-    INSERT INTO attendance (date, tasks_json, status, overtime_hours, day_fraction, half_period, half_note, submitted_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+    INSERT INTO attendance (date, tasks_json, status, overtime_hours, day_fraction, half_period, half_note, off_type, submitted_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     ON CONFLICT(date) DO UPDATE SET
       tasks_json = excluded.tasks_json,
       status = excluded.status,
@@ -36,8 +38,9 @@ attendanceRouter.post('/', (req, res) => {
       day_fraction = excluded.day_fraction,
       half_period = excluded.half_period,
       half_note = excluded.half_note,
+      off_type = excluded.off_type,
       submitted_at = excluded.submitted_at
-  `).run(date, tasksJson, finalStatus, finalOvertimeHours, finalDayFraction, finalHalfPeriod, finalHalfNote)
+  `).run(date, tasksJson, finalStatus, finalOvertimeHours, finalDayFraction, finalHalfPeriod, finalHalfNote, finalOffType)
   res.json(db.prepare('SELECT * FROM attendance WHERE date = ?').get(date))
 })
 

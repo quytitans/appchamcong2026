@@ -2,6 +2,8 @@ export type AttendanceStatus = 'worked' | 'off'
 
 export type HalfPeriod = 'morning' | 'afternoon' | 'other'
 
+export type OffType = 'holiday' | 'exception'
+
 export interface AttendanceRecord {
   date: string
   tasks_json: string
@@ -10,6 +12,7 @@ export interface AttendanceRecord {
   day_fraction: number
   half_period: HalfPeriod | null
   half_note: string
+  off_type: OffType | null
   submitted_at: string
 }
 
@@ -24,6 +27,7 @@ export interface AttendanceStats {
   offDays: number
   streaks: AttendanceStreak[]
   totalOvertimeHours: number
+  holidayCount: number
 }
 
 export interface Expense {
@@ -43,6 +47,9 @@ export interface PayrollSettings {
   monthly_wage: number
   monthly_bonus: number
   overtime_rate: number
+  bonus_note: string
+  other_amount: number
+  other_note: string
 }
 
 export interface Settlement {

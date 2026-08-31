@@ -4,6 +4,7 @@ import type {
   Expense,
   ExpenseSummary,
   HalfPeriod,
+  OffType,
   PayrollSettings,
   Settlement,
 } from './types'
@@ -43,10 +44,11 @@ export const api = {
     day_fraction = 1,
     half_period: HalfPeriod | null = null,
     half_note = '',
+    off_type: OffType | null = null,
   ) =>
     request<AttendanceRecord>('/api/attendance', {
       method: 'POST',
-      body: JSON.stringify({ date, tasks, status, overtime_hours, day_fraction, half_period, half_note }),
+      body: JSON.stringify({ date, tasks, status, overtime_hours, day_fraction, half_period, half_note, off_type }),
     }),
   deleteAttendance: (date: string) => request<void>(`/api/attendance/${date}`, { method: 'DELETE' }),
 
@@ -60,10 +62,18 @@ export const api = {
     }),
   revertMonthConfirmation: (month: string) =>
     request<void>(`/api/payroll/${month}/confirm`, { method: 'DELETE' }),
-  savePayroll: (month: string, monthly_wage: number, monthly_bonus: number, overtime_rate: number) =>
+  savePayroll: (
+    month: string,
+    monthly_wage: number,
+    monthly_bonus: number,
+    overtime_rate: number,
+    bonus_note = '',
+    other_amount = 0,
+    other_note = '',
+  ) =>
     request<PayrollSettings>(`/api/payroll/${month}`, {
       method: 'PUT',
-      body: JSON.stringify({ monthly_wage, monthly_bonus, overtime_rate }),
+      body: JSON.stringify({ monthly_wage, monthly_bonus, overtime_rate, bonus_note, other_amount, other_note }),
     }),
 
   getExpenses: () => request<Expense[]>('/api/expenses'),

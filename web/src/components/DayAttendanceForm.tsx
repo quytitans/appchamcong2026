@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Clock3, Lock, MoonStar } from 'lucide-react'
 import { api } from '../api'
-import type { AttendanceRecord, HalfPeriod } from '../types'
+import type { AttendanceRecord, HalfPeriod, OffType } from '../types'
 
 interface Props {
   date: string
@@ -24,12 +24,14 @@ export function DayAttendanceForm({ date, record, locked, onSaved }: Props) {
   const [overtimeChecked, setOvertimeChecked] = useState(false)
   const [overtimeHours, setOvertimeHours] = useState('')
   const [offChecked, setOffChecked] = useState(false)
+  const [offType, setOffType] = useState<OffType | null>(null)
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
 
   useEffect(() => {
     setSavedMsg('')
     setOffChecked(record?.status === 'off')
+    setOffType(record?.status === 'off' ? record.off_type : null)
     if (record?.status === 'worked') {
       setDayType(record.day_fraction === 0.5 ? 'half' : 'full')
       setHalfPeriod(record.half_period)
@@ -86,7 +88,7 @@ export function DayAttendanceForm({ date, record, locked, onSaved }: Props) {
     setSavedMsg('')
     try {
       const saved = offChecked
-        ? await api.saveAttendance(date, [], 'off')
+        ? await api.saveAttendance(date, [], 'off', 0, 1, null, '', offType)
         : await api.saveAttendance(
             date,
             [],

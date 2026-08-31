@@ -71,6 +71,9 @@ if (!attendanceColumns.some((c) => c.name === 'half_period')) {
 if (!attendanceColumns.some((c) => c.name === 'half_note')) {
   db.exec("ALTER TABLE attendance ADD COLUMN half_note TEXT NOT NULL DEFAULT ''")
 }
+if (!attendanceColumns.some((c) => c.name === 'off_type')) {
+  db.exec('ALTER TABLE attendance ADD COLUMN off_type TEXT')
+}
 
 const expenseColumns = db.prepare('PRAGMA table_info(expenses)').all() as { name: string }[]
 if (!expenseColumns.some((c) => c.name === 'settlement_id')) {
@@ -83,6 +86,15 @@ if (!payrollColumns.some((c) => c.name === 'overtime_rate')) {
 }
 if (payrollColumns.some((c) => c.name === 'daily_wage') && !payrollColumns.some((c) => c.name === 'monthly_wage')) {
   db.exec('ALTER TABLE payroll_settings RENAME COLUMN daily_wage TO monthly_wage')
+}
+if (!payrollColumns.some((c) => c.name === 'bonus_note')) {
+  db.exec("ALTER TABLE payroll_settings ADD COLUMN bonus_note TEXT NOT NULL DEFAULT ''")
+}
+if (!payrollColumns.some((c) => c.name === 'other_amount')) {
+  db.exec('ALTER TABLE payroll_settings ADD COLUMN other_amount INTEGER NOT NULL DEFAULT 0')
+}
+if (!payrollColumns.some((c) => c.name === 'other_note')) {
+  db.exec("ALTER TABLE payroll_settings ADD COLUMN other_note TEXT NOT NULL DEFAULT ''")
 }
 
 const confirmColumns = db.prepare('PRAGMA table_info(monthly_confirmations)').all() as { name: string }[]

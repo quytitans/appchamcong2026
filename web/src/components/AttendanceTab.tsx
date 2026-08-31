@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { api } from '../api'
-import type { AttendanceRecord, HalfPeriod } from '../types'
+import type { AttendanceRecord, HalfPeriod, OffType } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import { DayAttendanceForm } from './DayAttendanceForm'
 import {
@@ -28,6 +28,12 @@ function halfPeriodLabel(period: HalfPeriod | null): string {
   if (period === 'morning') return 'Sáng'
   if (period === 'afternoon') return 'Chiều'
   if (period === 'other') return 'Khác'
+  return ''
+}
+
+function offTypeLabel(offType: OffType | null): string {
+  if (offType === 'holiday') return 'Ngày lễ'
+  if (offType === 'exception') return 'Nghỉ ngoại lệ'
   return ''
 }
 
@@ -74,10 +80,10 @@ export function AttendanceTab({ isAdmin }: Props) {
     if (date === selectedDate) setSelectedDate(null)
   }
 
-  async function handleCalendarQuickSave(date: string, status: 'worked' | 'off') {
+  async function handleCalendarQuickSave(date: string, status: 'worked' | 'off', offType: OffType | null = null) {
     setCalendarQuickSaving(true)
     try {
-      const record = await api.saveAttendance(date, [], status)
+      const record = await api.saveAttendance(date, [], status, 0, 1, null, '', offType)
       setHistory((prev) => [record, ...prev.filter((r) => r.date !== date)])
     } finally {
       setCalendarQuickSaving(false)
@@ -86,7 +92,7 @@ export function AttendanceTab({ isAdmin }: Props) {
 
   function changeCalendarMonth(delta: number) {
     const next = navigateMonth(calendarMonth, delta)
-    if (next <= thisMonth) {
+    if (isAdmin || next <= thisMonth) {
       setCalendarMonth(next)
       setSelectedDate(null)
     }
@@ -166,7 +172,7 @@ export function AttendanceTab({ isAdmin }: Props) {
             type="button"
             className="btn btn-secondary btn-small calendar-nav-btn"
             onClick={() => changeCalendarMonth(1)}
-            disabled={calendarMonth >= thisMonth}
+            disabled={!isAdmin && calendarMonth >= thisMonth}
           >
             <ChevronRight size={18} />
           </button>
@@ -204,9 +210,10 @@ export function AttendanceTab({ isAdmin }: Props) {
             const day = Number(dateStr.split('-')[2])
             const record = historyByDate.get(dateStr)
             const isOff = record?.status === 'off'
+            const isSpecialOff = isOff && record?.off_type != null
             const isToday = dateStr === today
             const isSelected = dateStr === selectedDate
-            const isFuture = dateStr > today
+            const offMark = record?.off_type === 'holiday' ? 'Lễ' : record?.off_type === 'exception' ? 'NL' : 'Nghỉ'
             return (
               <button
                 key={dateStr}
@@ -215,19 +222,20 @@ export function AttendanceTab({ isAdmin }: Props) {
                   'calendar-cell',
                   record ? 'has-record' : '',
                   isOff ? 'is-off' : '',
+                  isSpecialOff ? 'is-special-off' : '',
                   isToday ? 'is-today' : '',
                   isSelected ? 'is-selected' : '',
-                  isAdmin && !isFuture && !record ? 'is-empty-admin' : '',
+                  isAdmin && !record ? 'is-empty-admin' : '',
                 ].join(' ')}
                 onClick={() => {
-                  if (isAdmin && !isFuture) setSelectedDate(isSelected ? null : dateStr)
-                  else if (!isAdmin) setSelectedDate(record ? dateStr : null)
+                  if (isAdmin) setSelectedDate(isSelected ? null : dateStr)
+                  else setSelectedDate(record ? dateStr : null)
                 }}
               >
                 <span className="calendar-day-number">{day}</span>
                 {record && (
                   <span className="calendar-day-mark">
-                    {isOff ? 'Nghỉ' : record.day_fraction === 0.5 ? '0.5' : '1'}
+                    {isOff ? offMark : record.day_fraction === 0.5 ? '0.5' : '1'}
                     {record.overtime_hours > 0 && (
                       <span className="calendar-day-overtime">+{record.overtime_hours}h</span>
                     )}
@@ -249,7 +257,9 @@ export function AttendanceTab({ isAdmin }: Props) {
             <div className="history-card-header">
               <strong>{formatDateVn(record.date)}</strong>
               {isOff ? (
-                <span className="badge badge-off">Nghỉ</span>
+                <span className={`badge ${record.off_type ? 'badge-holiday' : 'badge-off'}`}>
+                  {record.off_type ? offTypeLabel(record.off_type) : 'Nghỉ'}
+                </span>
               ) : (
                 <span className="badge">{record.day_fraction === 0.5 ? 'Nửa ngày' : 'Cả ngày'}</span>
               )}
@@ -286,9 +296,23 @@ export function AttendanceTab({ isAdmin }: Props) {
                 <button
                   className="btn btn-off btn-small"
                   onClick={() => handleCalendarQuickSave(record.date, 'off')}
-                  disabled={calendarQuickSaving || isOff}
+                  disabled={calendarQuickSaving || (isOff && !record.off_type)}
                 >
                   {calendarQuickSaving ? '...' : 'Sửa: Báo nghỉ'}
+                </button>
+                <button
+                  className="btn btn-holiday btn-small"
+                  onClick={() => handleCalendarQuickSave(record.date, 'off', 'holiday')}
+                  disabled={calendarQuickSaving || record.off_type === 'holiday'}
+                >
+                  {calendarQuickSaving ? '...' : 'Ngày lễ'}
+                </button>
+                <button
+                  className="btn btn-holiday btn-small"
+                  onClick={() => handleCalendarQuickSave(record.date, 'off', 'exception')}
+                  disabled={calendarQuickSaving || record.off_type === 'exception'}
+                >
+                  {calendarQuickSaving ? '...' : 'Nghỉ ngoại lệ'}
                 </button>
               </div>
             )}
@@ -301,7 +325,7 @@ export function AttendanceTab({ isAdmin }: Props) {
         )
       })()}
 
-      {isAdmin && selectedDate && !historyByDate.has(selectedDate) && selectedDate <= today && (() => {
+      {isAdmin && selectedDate && !historyByDate.has(selectedDate) && (() => {
         const canEdit = !isDateConfirmed(selectedDate)
         return (
           <div className="history-card day-detail-card">
@@ -324,6 +348,20 @@ export function AttendanceTab({ isAdmin }: Props) {
                   disabled={calendarQuickSaving}
                 >
                   {calendarQuickSaving ? '...' : 'Báo nghỉ'}
+                </button>
+                <button
+                  className="btn btn-holiday btn-small"
+                  onClick={() => handleCalendarQuickSave(selectedDate, 'off', 'holiday')}
+                  disabled={calendarQuickSaving}
+                >
+                  {calendarQuickSaving ? '...' : 'Ngày lễ'}
+                </button>
+                <button
+                  className="btn btn-holiday btn-small"
+                  onClick={() => handleCalendarQuickSave(selectedDate, 'off', 'exception')}
+                  disabled={calendarQuickSaving}
+                >
+                  {calendarQuickSaving ? '...' : 'Nghỉ ngoại lệ'}
                 </button>
               </div>
             ) : (
