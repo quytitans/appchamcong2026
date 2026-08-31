@@ -102,57 +102,32 @@ export function AttendanceTab({ isAdmin }: Props) {
 
   const backfillIsConfirmed = isDateConfirmed(backfillDate)
 
-  return (
-    <div className="tab-content">
-      {!isAdmin && (
-        <>
-          <h2>
-            <CalendarCheck size={20} className="title-icon" />
-            Chấm công hôm nay ({formatDateVn(today)})
-          </h2>
+  const adminFormSection = (
+    <>
+      <h2 className="history-title">
+        <CalendarCheck size={18} className="title-icon" />
+        Chấm công (Admin)
+      </h2>
+      <label className="field-label">
+        Chọn ngày (quá khứ hoặc tương lai)
+        <input
+          type="date"
+          value={backfillDate}
+          onChange={(e) => setBackfillDate(e.target.value)}
+          className="text-input"
+        />
+      </label>
+      <DayAttendanceForm
+        date={backfillDate}
+        record={historyByDate.get(backfillDate)}
+        locked={backfillIsConfirmed}
+        onSaved={(record) => setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])}
+      />
+    </>
+  )
 
-          {reminderMsg && (
-            <div className="off-banner reminder-banner">
-              <span>{reminderMsg}</span>
-            </div>
-          )}
-
-          <DayAttendanceForm
-            date={today}
-            record={historyByDate.get(today)}
-            locked={todayIsConfirmed}
-            onSaved={(record) => {
-              setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
-              setReminderMsg('')
-            }}
-          />
-        </>
-      )}
-
-      {isAdmin && (
-        <>
-          <h2 className="history-title">
-            <CalendarCheck size={18} className="title-icon" />
-            Chấm công (Admin)
-          </h2>
-          <label className="field-label">
-            Chọn ngày (quá khứ hoặc tương lai)
-            <input
-              type="date"
-              value={backfillDate}
-              onChange={(e) => setBackfillDate(e.target.value)}
-              className="text-input"
-            />
-          </label>
-          <DayAttendanceForm
-            date={backfillDate}
-            record={historyByDate.get(backfillDate)}
-            locked={backfillIsConfirmed}
-            onSaved={(record) => setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])}
-          />
-        </>
-      )}
-
+  const calendarSection = (
+    <>
       <h2 className="history-title">
         <CalendarRange size={18} className="title-icon" />
         Lịch chấm công ({formatMonthVn(calendarMonth)})
@@ -372,6 +347,39 @@ export function AttendanceTab({ isAdmin }: Props) {
           </div>
         )
       })()}
+    </>
+  )
+
+  return (
+    <div className="tab-content">
+      {!isAdmin && (
+        <>
+          <h2>
+            <CalendarCheck size={20} className="title-icon" />
+            Chấm công hôm nay ({formatDateVn(today)})
+          </h2>
+
+          {reminderMsg && (
+            <div className="off-banner reminder-banner">
+              <span>{reminderMsg}</span>
+            </div>
+          )}
+
+          <DayAttendanceForm
+            date={today}
+            record={historyByDate.get(today)}
+            locked={todayIsConfirmed}
+            onSaved={(record) => {
+              setHistory((prev) => [record, ...prev.filter((r) => r.date !== today)])
+              setReminderMsg('')
+            }}
+          />
+        </>
+      )}
+
+      {isAdmin && calendarSection}
+      {isAdmin && adminFormSection}
+      {!isAdmin && calendarSection}
 
       {confirmModal}
     </div>
