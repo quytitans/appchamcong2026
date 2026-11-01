@@ -22,9 +22,17 @@ app.use('/api/payroll', payrollRouter)
 app.use('/api/settlements', settlementsRouter)
 
 const webDist = path.join(__dirname, '..', '..', 'web', 'dist')
-app.use(express.static(webDist))
+// index.html tro toi file JS/CSS cua ban hien tai nen khong duoc luu lai o trinh duyet hay CDN
+const NO_STORE = 'no-store'
+app.use(
+  express.static(webDist, {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) res.setHeader('Cache-Control', NO_STORE)
+    },
+  }),
+)
 app.get(/^(?!\/api).*/, (req, res) => {
-  res.sendFile(path.join(webDist, 'index.html'))
+  res.sendFile(path.join(webDist, 'index.html'), { headers: { 'Cache-Control': NO_STORE } })
 })
 
 const PORT = 4000
