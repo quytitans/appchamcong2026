@@ -1038,6 +1038,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   border-top: 1px dashed #ccc;
   padding-top: 12px;
   gap: 8px;
@@ -1158,4 +1159,12 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
+}
+
+.invoice-download-error {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+  text-align: right;
 }

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { toBlob } from 'html-to-image'
 import {
   AlertTriangle,
   CalendarCheck,
   CalendarX,
   CheckCircle,
   Clock,
+  Download,
   FileText,
   Lock,
   Settings2,
@@ -41,6 +43,9 @@ export function SalaryTab() {
   const [monthIsConfirmed, setMonthIsConfirmed] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [reverting, setReverting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+  const invoiceRef = useRef<HTMLDivElement>(null)
   const { confirm, modal: confirmModal } = useConfirm()
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
@@ -137,10 +142,60 @@ export function SalaryTab() {
     setConfirming(true)
     try {
       await api.confirmMonth(month)
-      window.location.reload()
+      try {
+        const result = await api.checkMonthConfirmed(month)
+        setConfirmed(true)
+        setConfirmedAt(result.confirmed_at)
+        setSettledAmount(result.settled_amount)
+        // Doc lai tu server de popup va anh tai xuong hien dung so da luu
+        await load()
+      } catch {
+        // Da chot so nhung mang loi khi doc lai: tai lai trang de hien dung trang thai
+        window.location.reload()
+      }
     } finally {
       setConfirming(false)
     }
+  }
+
+  // Anh chi tao va tai xuong tren trinh duyet, khong gui len server
+  async function handleDownloadImage() {
+    const node = invoiceRef.current
+    if (!node) return
+    setDownloading(true)
+    setDownloadError('')
+    try {
+      const blob = await toBlob(node, {
+        width: node.offsetWidth,
+        height: node.scrollHeight,
+        pixelRatio: 2,
+        backgroundColor: '#fff',
+        skipFonts: true,
+        // Safari moi gop border-radius vao thuoc tinh corner, anh se mat bo goc neu copy corner-*
+        includeStyleProperties: Array.from(getComputedStyle(document.documentElement)).filter(
+          (prop) => !prop.startsWith('corner-'),
+        ),
+        // Bo gioi han chieu cao cua popup de chup du noi dung, khong can cuon
+        style: { maxHeight: 'none', overflow: 'hidden', boxShadow: 'none' },
+        filter: (el) => !(el instanceof HTMLElement && el.classList.contains('invoice-no-capture')),
+      })
+      if (!blob) throw new Error('Khong tao duoc anh')
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `chot-so-${month}.png`
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+    } catch {
+      setDownloadError('Không tạo được ảnh, vui lòng thử lại.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  function closeSummary() {
+    setDownloadError('')
+    setSummaryStep('closed')
   }
 
   if (loading) return <p className="loading">Đang tải...</p>
@@ -354,8 +409,8 @@ export function SalaryTab() {
 
       {/* Invoice popup */}
       {summaryStep === 'invoice' && (
-        <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
-          <div className="invoice-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={closeSummary}>
+          <div className="invoice-modal" ref={invoiceRef} onClick={(e) => e.stopPropagation()}>
             <div className="invoice-header">
               <FileText size={22} />
               <span>TỔNG KẾT THÁNG</span>
@@ -466,10 +521,20 @@ export function SalaryTab() {
 
               <div className="invoice-footer">
                 <span className="invoice-signature">QuyTitans</span>
-                <div className="invoice-actions">
-                  <button className="btn btn-secondary btn-small" onClick={() => setSummaryStep('closed')}>
+                <div className="invoice-actions invoice-no-capture">
+                  <button className="btn btn-secondary btn-small" onClick={closeSummary}>
                     Đóng
                   </button>
+                  {confirmed && (
+                    <button
+                      className="btn btn-primary btn-small"
+                      onClick={handleDownloadImage}
+                      disabled={downloading}
+                    >
+                      <Download size={14} />
+                      {downloading ? 'Đang tạo ảnh...' : 'Tải ảnh'}
+                    </button>
+                  )}
                   {!confirmed && (
                     <button
                       className="btn btn-primary btn-small"
@@ -481,6 +546,7 @@ export function SalaryTab() {
                   )}
                 </div>
               </div>
+              {downloadError && <p className="invoice-download-error invoice-no-capture">{downloadError}</p>}
             </div>
           </div>
         </div>
