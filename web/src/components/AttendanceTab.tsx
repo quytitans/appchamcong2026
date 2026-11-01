@@ -3,6 +3,7 @@ import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Lock } from 'l
 import { api } from '../api'
 import type { AttendanceRecord, HalfPeriod, OffType } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
+import { CalendarQuickActions } from './CalendarQuickActions'
 import { DayAttendanceForm } from './DayAttendanceForm'
 import {
   WEEKDAY_LABELS,
@@ -42,10 +43,8 @@ export function AttendanceTab({ isAdmin }: Props) {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const today = todayStr()
-  const [backfillDate, setBackfillDate] = useState(today)
   const { confirm, modal: confirmModal } = useConfirm()
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix())
-  const [calendarQuickSaving, setCalendarQuickSaving] = useState(false)
   const thisMonth = currentMonthPrefix()
   const lastMonth = previousMonthPrefix()
   const monthCells = getMonthCells(calendarMonth)
@@ -80,14 +79,8 @@ export function AttendanceTab({ isAdmin }: Props) {
     if (date === selectedDate) setSelectedDate(null)
   }
 
-  async function handleCalendarQuickSave(date: string, status: 'worked' | 'off', offType: OffType | null = null) {
-    setCalendarQuickSaving(true)
-    try {
-      const record = await api.saveAttendance(date, [], status, 0, 1, null, '', offType)
-      setHistory((prev) => [record, ...prev.filter((r) => r.date !== date)])
-    } finally {
-      setCalendarQuickSaving(false)
-    }
+  function handleCalendarSaved(record: AttendanceRecord) {
+    setHistory((prev) => [record, ...prev.filter((r) => r.date !== record.date)])
   }
 
   function changeCalendarMonth(delta: number) {
@@ -99,32 +92,6 @@ export function AttendanceTab({ isAdmin }: Props) {
   }
 
   if (loading) return <p className="loading">Đang tải...</p>
-
-  const backfillIsConfirmed = isDateConfirmed(backfillDate)
-
-  const adminFormSection = (
-    <>
-      <h2 className="history-title">
-        <CalendarCheck size={18} className="title-icon" />
-        Chấm công (Admin)
-      </h2>
-      <label className="field-label">
-        Chọn ngày (quá khứ hoặc tương lai)
-        <input
-          type="date"
-          value={backfillDate}
-          onChange={(e) => setBackfillDate(e.target.value)}
-          className="text-input"
-        />
-      </label>
-      <DayAttendanceForm
-        date={backfillDate}
-        record={historyByDate.get(backfillDate)}
-        locked={backfillIsConfirmed}
-        onSaved={(record) => setHistory((prev) => [record, ...prev.filter((r) => r.date !== backfillDate)])}
-      />
-    </>
-  )
 
   const calendarSection = (
     <>
@@ -260,36 +227,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               <div className="history-card-body">Tăng ca: {record.overtime_hours} giờ</div>
             )}
             {isAdmin && canEdit && (
-              <div className="history-card-body calendar-quick-actions">
-                <button
-                  className="btn btn-primary btn-small"
-                  onClick={() => handleCalendarQuickSave(record.date, 'worked')}
-                  disabled={calendarQuickSaving || record.status === 'worked'}
-                >
-                  {calendarQuickSaving ? '...' : 'Sửa: Chấm công'}
-                </button>
-                <button
-                  className="btn btn-off btn-small"
-                  onClick={() => handleCalendarQuickSave(record.date, 'off')}
-                  disabled={calendarQuickSaving || (isOff && !record.off_type)}
-                >
-                  {calendarQuickSaving ? '...' : 'Sửa: Báo nghỉ'}
-                </button>
-                <button
-                  className="btn btn-holiday btn-small"
-                  onClick={() => handleCalendarQuickSave(record.date, 'off', 'holiday')}
-                  disabled={calendarQuickSaving || record.off_type === 'holiday'}
-                >
-                  {calendarQuickSaving ? '...' : 'Ngày lễ'}
-                </button>
-                <button
-                  className="btn btn-holiday btn-small"
-                  onClick={() => handleCalendarQuickSave(record.date, 'off', 'exception')}
-                  disabled={calendarQuickSaving || record.off_type === 'exception'}
-                >
-                  {calendarQuickSaving ? '...' : 'Nghỉ ngoại lệ'}
-                </button>
-              </div>
+              <CalendarQuickActions key={record.date} date={record.date} record={record} onSaved={handleCalendarSaved} />
             )}
             {!canEdit && (
               <div className="month-locked-notice" style={{ marginTop: 8 }}>
@@ -309,36 +247,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               <span className="badge">Chưa chấm công</span>
             </div>
             {canEdit ? (
-              <div className="history-card-body calendar-quick-actions">
-                <button
-                  className="btn btn-primary btn-small"
-                  onClick={() => handleCalendarQuickSave(selectedDate, 'worked')}
-                  disabled={calendarQuickSaving}
-                >
-                  {calendarQuickSaving ? '...' : 'Chấm công'}
-                </button>
-                <button
-                  className="btn btn-off btn-small"
-                  onClick={() => handleCalendarQuickSave(selectedDate, 'off')}
-                  disabled={calendarQuickSaving}
-                >
-                  {calendarQuickSaving ? '...' : 'Báo nghỉ'}
-                </button>
-                <button
-                  className="btn btn-holiday btn-small"
-                  onClick={() => handleCalendarQuickSave(selectedDate, 'off', 'holiday')}
-                  disabled={calendarQuickSaving}
-                >
-                  {calendarQuickSaving ? '...' : 'Ngày lễ'}
-                </button>
-                <button
-                  className="btn btn-holiday btn-small"
-                  onClick={() => handleCalendarQuickSave(selectedDate, 'off', 'exception')}
-                  disabled={calendarQuickSaving}
-                >
-                  {calendarQuickSaving ? '...' : 'Nghỉ ngoại lệ'}
-                </button>
-              </div>
+              <CalendarQuickActions key={selectedDate} date={selectedDate} record={undefined} onSaved={handleCalendarSaved} />
             ) : (
               <div className="month-locked-notice" style={{ marginTop: 8 }}>
                 <Lock size={14} /> Tháng này đã xác nhận chốt số
@@ -377,9 +286,7 @@ export function AttendanceTab({ isAdmin }: Props) {
         </>
       )}
 
-      {isAdmin && calendarSection}
-      {isAdmin && adminFormSection}
-      {!isAdmin && calendarSection}
+      {calendarSection}
 
       {confirmModal}
     </div>
