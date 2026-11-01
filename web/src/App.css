@@ -1053,6 +1053,12 @@
   background: #059669;
 }
 
+.settlement-locked-note {
+  font-size: 12px;
+  color: #777;
+  text-align: right;
+}
+
 .settle-image-offscreen {
   position: fixed;
   top: 0;

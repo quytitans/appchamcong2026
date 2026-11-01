@@ -6,7 +6,7 @@ import { downloadElementAsImage } from '../downloadImage'
 import type { Expense, ExpenseSummary, Settlement } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
-import { formatDateVn, formatVnd, todayStr } from '../utils'
+import { formatDateVn, formatMonthVn, formatVnd, todayStr } from '../utils'
 
 interface Props {
   isAdmin: boolean
@@ -308,10 +308,15 @@ export function ExpenseTab({ isAdmin }: Props) {
                   <span className="badge badge-off settlement-amount">{formatVnd(s.total_amount)}</span>
                 </div>
               </button>
-              {isAdmin && index === 0 && (
+              {isAdmin && index === 0 && !s.confirmed_month && (
                 <button className="btn btn-secondary btn-small" onClick={() => handleRevertSettlement(s.id)}>
                   Chuyển về chi tiêu
                 </button>
+              )}
+              {isAdmin && index === 0 && s.confirmed_month && (
+                <span className="settlement-locked-note">
+                  Đã chốt số {formatMonthVn(s.confirmed_month).toLowerCase()}, muốn hoàn tác hãy khôi phục ở tab Lương
+                </span>
               )}
             </div>
             {expandedSettlementId === s.id && (

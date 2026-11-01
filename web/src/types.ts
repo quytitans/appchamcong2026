@@ -57,4 +57,5 @@ export interface Settlement {
   settled_at: string
   total_amount: number
   items: Expense[]
+  confirmed_month?: string | null
 }
