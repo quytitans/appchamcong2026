@@ -117,7 +117,7 @@ export function SalaryTab() {
 
   async function handleRevert() {
     const ok = await confirm(
-      `Hoàn tác xác nhận CK ${formatMonthVn(month)}? Tiền đi chợ đã tất toán sẽ quay về chưa tất toán.`,
+      `Hoàn tác xác nhận chốt số ${formatMonthVn(month)}? Tiền đi chợ đã tất toán sẽ quay về chưa tất toán.`,
     )
     if (!ok) return
     setReverting(true)
@@ -170,7 +170,7 @@ export function SalaryTab() {
       </h2>
       {monthIsConfirmed && (
         <div className="month-locked-notice">
-          <Lock size={14} /> Tháng này đã xác nhận CK — không thể thay đổi thiết lập lương
+          <Lock size={14} /> Tháng này đã xác nhận chốt số — không thể thay đổi thiết lập lương
         </div>
       )}
       <label className="field-label">
@@ -319,19 +319,19 @@ export function SalaryTab() {
 
       <button className="btn btn-summary btn-large" onClick={openSummary}>
         <FileText size={18} />
-        {monthIsConfirmed ? 'Xem lại xác nhận chuyển khoản' : 'Tổng kết tháng'}
+        {monthIsConfirmed ? 'Xem lại xác nhận chốt số' : 'Tổng kết tháng'}
       </button>
 
-      {/* Warning: đã xác nhận CK */}
+      {/* Warning: đã xác nhận chốt số */}
       {summaryStep === 'warning' && (
         <div className="modal-overlay" onClick={() => setSummaryStep('closed')}>
           <div className="modal-box ck-warning-box" onClick={(e) => e.stopPropagation()}>
             <div className="ck-warning-icon">
               <CheckCircle size={36} />
             </div>
-            <h2>Đã xác nhận chuyển khoản</h2>
+            <h2>Đã xác nhận chốt số</h2>
             <p className="ck-warning-desc">
-              {formatMonthVn(month)} đã xác nhận CK ngày <strong>{confirmedDateStr}</strong>
+              {formatMonthVn(month)} đã xác nhận chốt số ngày <strong>{confirmedDateStr}</strong>
             </p>
             <div className="ck-warning-actions">
               <button className="btn btn-secondary" onClick={() => setSummaryStep('closed')}>
@@ -366,7 +366,7 @@ export function SalaryTab() {
               {confirmed && (
                 <div className="invoice-confirmed-banner">
                   <CheckCircle size={15} />
-                  Đã xác nhận chuyển khoản ngày {confirmedDateStr}
+                  Đã xác nhận chốt số ngày {confirmedDateStr}
                 </div>
               )}
 
@@ -476,7 +476,7 @@ export function SalaryTab() {
                       onClick={handleConfirmTransfer}
                       disabled={confirming || loadingUnsettled}
                     >
-                      {confirming ? 'Đang xử lý...' : 'Xác nhận CK'}
+                      {confirming ? 'Đang xử lý...' : 'Xác nhận chốt số'}
                     </button>
                   )}
                 </div>

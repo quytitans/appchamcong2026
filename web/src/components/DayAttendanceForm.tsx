@@ -109,7 +109,7 @@ export function DayAttendanceForm({ date, record, locked, onSaved }: Props) {
     <div className="day-attendance-form">
       {locked && (
         <div className="month-locked-notice">
-          <Lock size={14} /> Tháng này đã xác nhận CK — không thể thay đổi chấm công
+          <Lock size={14} /> Tháng này đã xác nhận chốt số — không thể thay đổi chấm công
         </div>
       )}
 

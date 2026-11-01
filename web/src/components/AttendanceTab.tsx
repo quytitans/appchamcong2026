@@ -293,7 +293,7 @@ export function AttendanceTab({ isAdmin }: Props) {
             )}
             {!canEdit && (
               <div className="month-locked-notice" style={{ marginTop: 8 }}>
-                <Lock size={14} /> Tháng này đã xác nhận CK
+                <Lock size={14} /> Tháng này đã xác nhận chốt số
               </div>
             )}
           </div>
@@ -341,7 +341,7 @@ export function AttendanceTab({ isAdmin }: Props) {
               </div>
             ) : (
               <div className="month-locked-notice" style={{ marginTop: 8 }}>
-                <Lock size={14} /> Tháng này đã xác nhận CK
+                <Lock size={14} /> Tháng này đã xác nhận chốt số
               </div>
             )}
           </div>
