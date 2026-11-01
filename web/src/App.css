@@ -488,6 +488,7 @@
 
 .settlement-amount {
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .salary-total-card {
