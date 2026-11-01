@@ -5,6 +5,7 @@ import { AttendanceTab } from './components/AttendanceTab'
 import { ExpenseTab } from './components/ExpenseTab'
 import { AdminConfigTab } from './components/AdminConfigTab'
 import { SalaryTab } from './components/SalaryTab'
+import { UserSalaryTab } from './components/UserSalaryTab'
 import { PasswordModal } from './components/PasswordModal'
 import { AccessGate } from './components/AccessGate'
 import { LeafLogo } from './components/LeafLogo'
@@ -82,12 +83,10 @@ function App() {
           <ShoppingCart size={18} />
           Tiền đi chợ
         </button>
-        {isAdmin && (
-          <button className={tab === 'salary' ? 'tab-btn active' : 'tab-btn'} onClick={() => setTab('salary')}>
-            <Wallet size={18} />
-            Lương
-          </button>
-        )}
+        <button className={tab === 'salary' ? 'tab-btn active' : 'tab-btn'} onClick={() => setTab('salary')}>
+          <Wallet size={18} />
+          {isAdmin ? 'Lương' : 'Tiền lương'}
+        </button>
         {isAdmin && (
           <button className={tab === 'admin' ? 'tab-btn active' : 'tab-btn'} onClick={() => setTab('admin')}>
             <Settings size={18} />
@@ -99,7 +98,7 @@ function App() {
       <main className="app-main">
         {tab === 'attendance' && <AttendanceTab isAdmin={isAdmin} />}
         {tab === 'expense' && <ExpenseTab isAdmin={isAdmin} />}
-        {tab === 'salary' && isAdmin && <SalaryTab />}
+        {tab === 'salary' && (isAdmin ? <SalaryTab /> : <UserSalaryTab />)}
         {tab === 'admin' && isAdmin && <AdminConfigTab />}
       </main>
 

@@ -1,4 +1,54 @@
-import type { AttendanceRecord, AttendanceStats, AttendanceStreak } from './types'
+import type { AttendanceRecord, AttendanceStats, AttendanceStreak, PayrollSettings } from './types'
+
+const DEFAULT_MONTHLY_WAGE = 10000000
+const DEFAULT_MONTHLY_BONUS = 1000000
+
+export interface SalaryBreakdown {
+  stats: AttendanceStats
+  wage: number
+  wagePerDay: number
+  bonus: number
+  otRate: number
+  overtimePay: number
+  congForPay: number
+  congDiff: number
+  wageAdjustment: number
+  adjustedWage: number
+  otherAmount: number
+  total: number
+}
+
+// Thuong 0d luon di kem ly do, nen co ly do la thuong 0d da luu chu khong phai chua thiet lap
+export function payrollFormValues(payroll: PayrollSettings) {
+  const bonusSaved = payroll.monthly_bonus > 0 || !!payroll.bonus_note
+  return {
+    wage: String(payroll.monthly_wage > 0 ? payroll.monthly_wage : DEFAULT_MONTHLY_WAGE),
+    bonus: String(bonusSaved ? payroll.monthly_bonus : DEFAULT_MONTHLY_BONUS),
+    bonusNote: payroll.bonus_note || '',
+    otherAmount: payroll.other_amount ? String(payroll.other_amount) : '',
+    otherNote: payroll.other_note || '',
+  }
+}
+
+export function computeSalary(
+  history: AttendanceRecord[],
+  month: string,
+  wage: number,
+  bonus: number,
+  otherAmount: number,
+): SalaryBreakdown {
+  const stats = computeMonthStats(history, month)
+  const wagePerDay = Math.round(wage / 26)
+  const otRate = Math.round((wagePerDay / 9) * 1.5)
+  const overtimePay = stats.totalOvertimeHours * otRate
+  // Ngay le tinh la cong khi doi chieu voi dinh muc 26 cong/thang
+  const congForPay = stats.workedDays + stats.holidayCount
+  const congDiff = congForPay - 26
+  const wageAdjustment = Math.round(congDiff * wagePerDay)
+  const adjustedWage = wage + wageAdjustment
+  const total = adjustedWage + bonus + overtimePay + otherAmount
+  return { stats, wage, wagePerDay, bonus, otRate, overtimePay, congForPay, congDiff, wageAdjustment, adjustedWage, otherAmount, total }
+}
 
 export function todayStr(): string {
   const d = new Date()

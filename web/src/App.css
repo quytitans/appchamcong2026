@@ -968,6 +968,12 @@
   overflow-y: auto;
 }
 
+.invoice-inline {
+  max-height: none;
+  margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
 .invoice-header {
   background: var(--accent);
   color: #fff;

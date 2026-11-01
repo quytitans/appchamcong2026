@@ -16,12 +16,10 @@ import { downloadElementAsImage } from '../downloadImage'
 import type { AttendanceRecord } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
-import { computeMonthStats, currentMonthPrefix, formatDateVn, formatMonthVn, formatVnd, previousMonthPrefix, todayStr } from '../utils'
+import { MonthInvoiceContent } from './MonthInvoiceContent'
+import { computeSalary, currentMonthPrefix, formatDateVn, formatMonthVn, formatVnd, payrollFormValues, previousMonthPrefix } from '../utils'
 
 type SummaryStep = 'closed' | 'warning' | 'invoice'
-
-const DEFAULT_MONTHLY_WAGE = 10000000
-const DEFAULT_MONTHLY_BONUS = 1000000
 
 export function SalaryTab() {
   const [history, setHistory] = useState<AttendanceRecord[]>([])
@@ -62,11 +60,12 @@ export function SalaryTab() {
       api.checkMonthConfirmed(month),
     ])
     setHistory(historyList)
-    setMonthlyWage(payrollData.monthly_wage > 0 ? String(payrollData.monthly_wage) : String(DEFAULT_MONTHLY_WAGE))
-    setMonthlyBonus(payrollData.monthly_bonus > 0 ? String(payrollData.monthly_bonus) : String(DEFAULT_MONTHLY_BONUS))
-    setBonusNote(payrollData.bonus_note || '')
-    setOtherAmount(payrollData.other_amount ? String(payrollData.other_amount) : '')
-    setOtherNote(payrollData.other_note || '')
+    const values = payrollFormValues(payrollData)
+    setMonthlyWage(values.wage)
+    setMonthlyBonus(values.bonus)
+    setBonusNote(values.bonusNote)
+    setOtherAmount(values.otherAmount)
+    setOtherNote(values.otherNote)
     setMonthIsConfirmed(confirmResult.confirmed)
     setLoading(false)
   }
@@ -184,20 +183,10 @@ export function SalaryTab() {
 
   if (loading) return <p className="loading">Đang tải...</p>
 
-  const stats = computeMonthStats(history, month)
-  const wage = Number(monthlyWage) || 0
-  const wagePerDay = Math.round(wage / 26)
-  const bonus = Number(monthlyBonus) || 0
+  const salary = computeSalary(history, month, Number(monthlyWage) || 0, Number(monthlyBonus) || 0, Number(otherAmount) || 0)
+  const { stats, wagePerDay, bonus, otRate, overtimePay, total } = salary
   const bonusIsZero = bonus === 0
-  const otRate = Math.round((wagePerDay / 9) * 1.5)
-  const overtimePay = stats.totalOvertimeHours * otRate
-  // Ngay le tinh la cong khi doi chieu voi dinh muc 26 cong/thang
-  const congForPay = stats.workedDays + stats.holidayCount
-  const congDiff = congForPay - 26
-  const wageAdjustment = Math.round(congDiff * wagePerDay)
-  const adjustedWage = wage + wageAdjustment
-  const otherAmountNum = Number(otherAmount) || 0
-  const total = adjustedWage + bonus + overtimePay + otherAmountNum
+  const otherAmountNum = salary.otherAmount
   const confirmedDateStr = confirmedAt ? formatDateVn(confirmedAt.slice(0, 10)) : ''
   const canSavePayroll = !bonusIsZero || bonusNote.trim() !== ''
 
@@ -395,116 +384,17 @@ export function SalaryTab() {
       {summaryStep === 'invoice' && (
         <div className="modal-overlay" onClick={closeSummary}>
           <div className="invoice-modal" ref={invoiceRef} onClick={(e) => e.stopPropagation()}>
-            <div className="invoice-header">
-              <FileText size={22} />
-              <span>TỔNG KẾT THÁNG</span>
-              <span className="invoice-month">{formatMonthVn(month)}</span>
-            </div>
-
-            <div className="invoice-body">
-              {confirmed && (
-                <div className="invoice-confirmed-banner">
-                  <CheckCircle size={15} />
-                  Đã xác nhận chốt số ngày {confirmedDateStr}
-                </div>
-              )}
-
-              <div className="invoice-meta">
-                Ngày tổng kết: <strong>{formatDateVn(todayStr())}</strong>
-              </div>
-
-              {stats.streaks.length > 0 && (
-                <div className="invoice-section">
-                  <div className="invoice-section-title">Nghỉ liên tiếp (≥2 ngày)</div>
-                  {stats.streaks.map((s) => (
-                    <div key={s.start} className="invoice-streak-row">
-                      {formatDateVn(s.start)} → {formatDateVn(s.end)} ({s.length} ngày)
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="invoice-section">
-                <div className="invoice-section-title">Lương {formatMonthVn(month)}</div>
-                <div className="invoice-row">
-                  <span>Số ngày nghỉ</span>
-                  <strong>{stats.offDays} ngày</strong>
-                </div>
-                <div className="invoice-row">
-                  <span>
-                    Số công tính lương{stats.holidayCount > 0 ? ` (gồm ${stats.holidayCount} ngày lễ)` : ''}
-                  </span>
-                  <strong>{congForPay} / 26 công</strong>
-                </div>
-                <div className="invoice-row">
-                  <span>Tiền công tháng (khoán)</span>
-                  <strong>{formatVnd(wage)}</strong>
-                </div>
-                {congDiff !== 0 && (
-                  <>
-                    <div className="invoice-row">
-                      <span>
-                        {congDiff > 0 ? 'Làm dư' : 'Thiếu'} {Math.abs(congDiff)} công × {formatVnd(wagePerDay)}/ngày
-                      </span>
-                      <strong className={congDiff > 0 ? '' : 'text-danger'}>
-                        {congDiff > 0 ? '+' : ''}
-                        {formatVnd(wageAdjustment)}
-                      </strong>
-                    </div>
-                    <div className="invoice-row">
-                      <span>Tiền công thực nhận</span>
-                      <strong>{formatVnd(adjustedWage)}</strong>
-                    </div>
-                  </>
-                )}
-                <div className="invoice-row">
-                  <span>Tiền thưởng tháng</span>
-                  <strong>{formatVnd(bonus)}</strong>
-                </div>
-                {bonusIsZero && (
-                  <div className="invoice-note">Lý do thưởng = 0đ: {bonusNote || '(chưa ghi lý do)'}</div>
-                )}
-                {overtimePay > 0 && (
-                  <>
-                    <div className="invoice-row">
-                      <span>Tăng ca: {stats.totalOvertimeHours}h × {formatVnd(otRate)}/h</span>
-                      <strong>{formatVnd(overtimePay)}</strong>
-                    </div>
-                    <div className="invoice-note">
-                      Lương 1 giờ tăng ca = Lương ngày (lương tháng ÷ 26) ÷ 9 giờ × 150%
-                    </div>
-                  </>
-                )}
-                {otherAmountNum !== 0 && (
-                  <div className="invoice-row">
-                    <span>Khác{otherNote ? `: ${otherNote}` : ''}</span>
-                    <strong className={otherAmountNum > 0 ? '' : 'text-danger'}>
-                      {otherAmountNum > 0 ? '+' : ''}
-                      {formatVnd(otherAmountNum)}
-                    </strong>
-                  </div>
-                )}
-              </div>
-
-              <div className="invoice-section">
-                <div className="invoice-section-title">
-                  {confirmed ? 'Tiền đi chợ (đã tất toán)' : 'Tiền đi chợ chưa tất toán'}
-                </div>
-                <div className="invoice-row">
-                  <span>{confirmed ? 'Số tiền đã tất toán' : 'Tổng chưa tất toán'}</span>
-                  <strong className={confirmed ? '' : 'text-danger'}>
-                    {confirmed ? formatVnd(settledAmount) : (loadingUnsettled ? '...' : formatVnd(unsettledTotal))}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="invoice-total">
-                <span>Tổng tiền chuyển khoản</span>
-                <strong>{loadingUnsettled && !confirmed ? '...' : formatVnd(total + (confirmed ? settledAmount : unsettledTotal))}</strong>
-              </div>
-
-              <div className="invoice-footer">
-                <span className="invoice-signature">QuyTitans</span>
+            <MonthInvoiceContent
+              month={month}
+              salary={salary}
+              bonusNote={bonusNote}
+              otherNote={otherNote}
+              confirmed={confirmed}
+              confirmedAt={confirmedAt}
+              settledAmount={settledAmount}
+              unsettledTotal={unsettledTotal}
+              loadingUnsettled={loadingUnsettled}
+              actions={
                 <div className="invoice-actions invoice-no-capture">
                   <button className="btn btn-secondary btn-small" onClick={closeSummary}>
                     Đóng
@@ -529,9 +419,10 @@ export function SalaryTab() {
                     </button>
                   )}
                 </div>
-              </div>
+              }
+            >
               {downloadError && <p className="invoice-download-error invoice-no-capture">{downloadError}</p>}
-            </div>
+            </MonthInvoiceContent>
           </div>
         </div>
       )}
