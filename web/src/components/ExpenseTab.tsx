@@ -17,7 +17,7 @@ interface Row {
   amount: string
 }
 
-const USER_SETTLEMENT_LIMIT = 6
+const USER_SETTLEMENT_LIMIT = 4
 const ADMIN_SETTLEMENT_LIMITS = [5, 10, 50]
 
 function emptyRow(): Row {
