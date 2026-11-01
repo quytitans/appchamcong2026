@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { CircleDollarSign, Receipt, ShoppingBasket } from 'lucide-react'
 import { api } from '../api'
+import { downloadElementAsImage } from '../downloadImage'
 import type { Expense, ExpenseSummary, Settlement } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
@@ -32,6 +34,8 @@ export function ExpenseTab({ isAdmin }: Props) {
   const [settling, setSettling] = useState(false)
   const [showSettleInvoice, setShowSettleInvoice] = useState(false)
   const [editing, setEditing] = useState<Record<number, Row>>({})
+  const [imageSettlement, setImageSettlement] = useState<Settlement | null>(null)
+  const settlementImageRef = useRef<HTMLDivElement>(null)
   const { confirm, modal: confirmModal } = useConfirm()
 
   function canManage(item: Expense) {
@@ -119,12 +123,31 @@ export function ExpenseTab({ isAdmin }: Props) {
   async function handleConfirmSettle() {
     if (!(await confirm('Xác nhận tất toán toàn bộ chi tiêu chưa tất toán?'))) return
     setSettling(true)
+    let settlement: Settlement
     try {
-      await api.settleExpenses()
+      settlement = await api.settleExpenses()
       setShowSettleInvoice(false)
       await load()
     } finally {
       setSettling(false)
+    }
+    await offerSettlementImage(settlement)
+  }
+
+  // Phieu chi duoc dua vao trang khi nguoi dung dong y tai anh, tai xong bo ra ngay
+  async function offerSettlementImage(settlement: Settlement) {
+    let question = `Đã tất toán ${formatVnd(settlement.total_amount)} (${settlement.items.length} khoản chi). Bạn có muốn tải ảnh phiếu tất toán không?`
+    while (await confirm(question, { confirmLabel: 'Tải ảnh', cancelLabel: 'Không' })) {
+      flushSync(() => setImageSettlement(settlement))
+      try {
+        if (!settlementImageRef.current) throw new Error('Khong tao duoc anh')
+        await downloadElementAsImage(settlementImageRef.current, `tat-toan-${settlement.settled_at.slice(0, 10)}.png`)
+        return
+      } catch {
+        question = 'Không tạo được ảnh. Bạn có muốn thử lại không?'
+      } finally {
+        setImageSettlement(null)
+      }
     }
   }
 
@@ -365,6 +388,46 @@ export function ExpenseTab({ isAdmin }: Props) {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Chi dung de tao anh, nam ngoai man hinh */}
+      {imageSettlement && (
+        <div className="settle-image-offscreen" aria-hidden="true">
+          <div className="settle-image" ref={settlementImageRef}>
+            <div className="invoice-header settle-invoice-header">
+              <ShoppingBasket size={20} />
+              <span>PHIẾU TẤT TOÁN</span>
+              <span className="invoice-month">Tiền đi chợ</span>
+            </div>
+            <div className="settle-image-body">
+              <div className="settle-image-meta">
+                <span>
+                  Ngày tất toán: <strong>{formatDateVn(imageSettlement.settled_at.slice(0, 10))}</strong>
+                </span>
+                <span>{imageSettlement.items.length} khoản chi</span>
+              </div>
+              {groupByDate(imageSettlement.items).map(([d, items]) => (
+                <div key={d} className="settle-image-day">
+                  <div className="settle-image-row settle-image-day-title">
+                    <span>{formatDateVn(d)}</span>
+                    <strong>{formatVnd(items.reduce((sum, it) => sum + it.amount, 0))}</strong>
+                  </div>
+                  {items.map((item) => (
+                    <div key={item.id} className="settle-image-row">
+                      <span>{item.item_name}</span>
+                      <span className="settle-image-amount">{formatVnd(item.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <div className="invoice-total settle-image-total">
+                <span>Tổng tất toán</span>
+                <strong>{formatVnd(imageSettlement.total_amount)}</strong>
+              </div>
+              <span className="invoice-signature">QuyTitans</span>
             </div>
           </div>
         </div>

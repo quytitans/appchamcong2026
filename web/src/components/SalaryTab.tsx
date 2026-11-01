@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { toBlob } from 'html-to-image'
 import {
   AlertTriangle,
   CalendarCheck,
@@ -13,6 +12,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { api } from '../api'
+import { downloadElementAsImage } from '../downloadImage'
 import type { AttendanceRecord } from '../types'
 import { useConfirm } from '../hooks/useConfirm'
 import { MoneyInput } from './MoneyInput'
@@ -158,34 +158,18 @@ export function SalaryTab() {
     }
   }
 
-  // Anh chi tao va tai xuong tren trinh duyet, khong gui len server
   async function handleDownloadImage() {
     const node = invoiceRef.current
     if (!node) return
     setDownloading(true)
     setDownloadError('')
     try {
-      const blob = await toBlob(node, {
-        width: node.offsetWidth,
-        height: node.scrollHeight,
-        pixelRatio: 2,
-        backgroundColor: '#fff',
-        skipFonts: true,
-        // Safari moi gop border-radius vao thuoc tinh corner, anh se mat bo goc neu copy corner-*
-        includeStyleProperties: Array.from(getComputedStyle(document.documentElement)).filter(
-          (prop) => !prop.startsWith('corner-'),
-        ),
-        // Bo gioi han chieu cao cua popup de chup du noi dung, khong can cuon
-        style: { maxHeight: 'none', overflow: 'hidden', boxShadow: 'none' },
-        filter: (el) => !(el instanceof HTMLElement && el.classList.contains('invoice-no-capture')),
+      // Bo gioi han chieu cao cua popup de chup du noi dung, khong can cuon
+      await downloadElementAsImage(node, `chot-so-${month}.png`, {
+        maxHeight: 'none',
+        overflow: 'hidden',
+        boxShadow: 'none',
       })
-      if (!blob) throw new Error('Khong tao duoc anh')
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `chot-so-${month}.png`
-      link.click()
-      setTimeout(() => URL.revokeObjectURL(url), 10000)
     } catch {
       setDownloadError('Không tạo được ảnh, vui lòng thử lại.')
     } finally {
