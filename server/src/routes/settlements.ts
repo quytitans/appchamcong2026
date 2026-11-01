@@ -3,13 +3,16 @@ import { db } from '../db.js'
 
 export const settlementsRouter = Router()
 
+const MAX_LIMIT = 50
+
 settlementsRouter.get('/', (req, res) => {
+  const limit = Math.min(Math.max(Math.trunc(Number(req.query.limit)) || 5, 1), MAX_LIMIT)
   const settlements = db
     .prepare(`
       SELECT s.*, (SELECT mc.month FROM monthly_confirmations mc WHERE mc.settlement_id = s.id) as confirmed_month
-      FROM settlements s ORDER BY s.id DESC LIMIT 5
+      FROM settlements s ORDER BY s.id DESC LIMIT ?
     `)
-    .all() as { id: number }[]
+    .all(limit) as { id: number }[]
   const result = settlements.map((s) => ({
     ...s,
     items: db.prepare('SELECT * FROM expenses WHERE settlement_id = ? ORDER BY date DESC, id DESC').all(s.id),

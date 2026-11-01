@@ -17,6 +17,9 @@ interface Row {
   amount: string
 }
 
+const USER_SETTLEMENT_LIMIT = 6
+const ADMIN_SETTLEMENT_LIMITS = [5, 10, 50]
+
 function emptyRow(): Row {
   return { item_name: '', amount: '' }
 }
@@ -27,6 +30,7 @@ export function ExpenseTab({ isAdmin }: Props) {
   const [rows, setRows] = useState<Row[]>([emptyRow()])
   const [history, setHistory] = useState<Expense[]>([])
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [settlementLimit, setSettlementLimit] = useState(isAdmin ? ADMIN_SETTLEMENT_LIMITS[0] : USER_SETTLEMENT_LIMIT)
   const [expandedSettlementId, setExpandedSettlementId] = useState<number | null>(null)
   const [summary, setSummary] = useState<ExpenseSummary>({ monthTotal: 0 })
   const [loading, setLoading] = useState(true)
@@ -77,12 +81,17 @@ export function ExpenseTab({ isAdmin }: Props) {
     const [historyList, summaryData, settlementList] = await Promise.all([
       api.getExpenses(),
       api.getExpenseSummary(),
-      api.getSettlements(),
+      api.getSettlements(settlementLimit),
     ])
     setHistory(historyList)
     setSummary(summaryData)
     setSettlements(settlementList)
     setLoading(false)
+  }
+
+  async function changeSettlementLimit(limit: number) {
+    setSettlementLimit(limit)
+    setSettlements(await api.getSettlements(limit))
   }
 
   function updateRow(index: number, field: keyof Row, value: string) {
@@ -293,6 +302,20 @@ export function ExpenseTab({ isAdmin }: Props) {
         <Receipt size={18} className="title-icon" />
         Lịch sử tất toán
       </h2>
+      {isAdmin && (
+        <div className="status-toggle">
+          {ADMIN_SETTLEMENT_LIMITS.map((limit) => (
+            <button
+              key={limit}
+              type="button"
+              className={settlementLimit === limit ? 'btn btn-primary btn-small' : 'btn btn-secondary btn-small'}
+              onClick={() => changeSettlementLimit(limit)}
+            >
+              {limit} bản ghi
+            </button>
+          ))}
+        </div>
+      )}
       <div className="history-list">
         {settlements.length === 0 && <p>Chưa có lần tất toán nào.</p>}
         {settlements.map((s, index) => (

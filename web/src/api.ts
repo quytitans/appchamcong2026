@@ -84,6 +84,6 @@ export const api = {
     request<Expense>(`/api/expenses/${id}`, { method: 'PUT', body: JSON.stringify({ item_name, amount }) }),
   deleteExpense: (id: number) => request<void>(`/api/expenses/${id}`, { method: 'DELETE' }),
   settleExpenses: () => request<Settlement>('/api/expenses/settle', { method: 'POST' }),
-  getSettlements: () => request<Settlement[]>('/api/settlements'),
+  getSettlements: (limit: number) => request<Settlement[]>(`/api/settlements?limit=${limit}`),
   revertSettlement: (id: number) => request<void>(`/api/settlements/${id}/revert`, { method: 'POST' }),
 }
